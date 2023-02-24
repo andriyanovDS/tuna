@@ -1,9 +1,7 @@
 use std::process::exit;
 
-use tuna;
-
 fn main() {
-    let file_path = std::env::args().skip(1).next();
+    let file_path = std::env::args().nth(1);
     match file_path {
         Some(path) => {
             tuna::handle_file(path);
