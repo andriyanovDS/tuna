@@ -1,18 +1,22 @@
+use std::sync::mpsc;
+use std::fs::File;
+
 pub mod file_reader;
+pub mod ui;
 
 pub fn handle_file(path: String) {
-    match file_reader::read_file(path) {
-        Ok(iter) => {
-            render_entries(iter);
-        }
+    let (sender, receiver) = mpsc::channel();
+    let mut term = ui::TermUI::new();
+    let callback = term.callback().clone();
+    match File::open(path) {
+        Ok(file) => {
+            std::thread::spawn(move || {
+                file_reader::read_file(file, sender, callback);
+            });
+            term.run(receiver);
+        },
         Err(error) => {
-            eprintln!("Failed to open file {error}");
+            eprintln!("Failed to open file: {error}");
         }
-    }
-}
-
-fn render_entries(iter: impl Iterator<Item=file_reader::LogEntry>) {
-    for entry in iter {
-        
     }
 }

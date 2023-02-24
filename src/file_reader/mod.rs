@@ -1,20 +1,19 @@
-use std::path::Path;
 use std::fs::File;
 use std::io::{BufReader, BufRead};
-use anyhow::Error;
+use std::sync::mpsc::Sender;
 
 pub enum LogEntry {
     Empty,
+    Info(String)
 }
 
 impl From<String> for LogEntry {
     fn from(value: String) -> Self {
-        Self::Empty
+        Self::Info(value)
     }
 }
 
-pub fn read_file<P: AsRef<Path>>(path: P) -> Result<impl Iterator<Item=LogEntry>, Error> {
-    let file = File::open(path)?;
+pub fn read_file(file: File, sender: Sender<LogEntry>, callback: cursive::CbSink) {
     let reader = BufReader::new(file);
     let iterator = reader
         .lines()
@@ -23,5 +22,8 @@ pub fn read_file<P: AsRef<Path>>(path: P) -> Result<impl Iterator<Item=LogEntry>
                 .map(LogEntry::from)
                 .unwrap_or(LogEntry::Empty)
         });
-    Ok(iterator)
-}
+    for entry in iterator {
+        sender.send(entry).unwrap();
+        callback.send(Box::new(cursive::Cursive::noop)).unwrap();
+    }
+} 
