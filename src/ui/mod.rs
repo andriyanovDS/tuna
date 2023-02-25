@@ -1,7 +1,7 @@
-use crate::file_reader::LogEntry;
+use crate::file_reader::log_entry::LogEntry;
 use cursive::{
     traits::Scrollable,
-    view::{self, Resizable},
+    view::{self, Resizable}, theme::Theme,
     views, CbSink, CursiveRunnable, Vec2,
 };
 use std::sync::mpsc::Receiver;
@@ -37,6 +37,7 @@ impl TermUI {
 
     pub fn run(&mut self, receiver: Receiver<LogEntry>) {
         let state = State::new(receiver);
+        self.runnable.set_theme(Theme::terminal_default());
         self.runnable.add_layer(TermUI::build_ui(state));
         self.runnable.add_global_callback('q', |c| c.quit());
         self.runnable.run();
@@ -71,7 +72,9 @@ impl LogEntry {
     fn display(&self) -> String {
         match self {
             LogEntry::Empty => String::from(" "),
-            LogEntry::Info(info) => info.clone(),
+            LogEntry::Info(message) => {
+                format!("{} [{}] {}", message.date_time, message.source, message.message)
+            },
         }
     }
 }
