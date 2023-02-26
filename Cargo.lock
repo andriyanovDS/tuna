@@ -629,6 +629,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "cursive",
+ "log",
  "serde",
  "serde_json",
 ]
