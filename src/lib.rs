@@ -1,18 +1,19 @@
 use std::fs::File;
-use std::sync::mpsc;
-
 pub mod file_reader;
 pub mod ui;
 
 pub fn handle_file(path: String) {
-    let (sender, receiver) = mpsc::channel();
+    let (sender, receiver) = crossbeam_channel::bounded(100);
     let mut term = ui::TermUI::new();
     let callback = term.callback().clone();
     match File::open(path) {
         Ok(file) => {
-            std::thread::spawn(move || {
-                file_reader::read_file(file, sender, callback);
-            });
+            std::thread::Builder::new()
+                .name("file_processing".into())
+                .spawn(move || {
+                    file_reader::read_file(file, sender, callback);
+                })
+                .unwrap();
             term.run(receiver);
         }
         Err(error) => {

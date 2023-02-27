@@ -1,4 +1,5 @@
 use crate::file_reader::log_entry::LogEntry;
+use crossbeam_channel::Receiver;
 use cursive::{
     event::{EventResult, Key},
     theme::Theme,
@@ -7,7 +8,6 @@ use cursive::{
     views::{self, OnEventView},
     CbSink, CursiveRunnable, Printer, XY,
 };
-use std::sync::mpsc::Receiver;
 
 struct State {
     buffer: Vec<LogEntry>,
@@ -82,11 +82,21 @@ impl TermUI {
     }
 
     fn layout(state: &mut State, size: XY<usize>) {
-        while let Ok(entry) = state.receiver.recv() {
-            state.buffer.push(entry);
+        let offset = state.offset;
+        let mut request_count = if state.buffer.len() < offset + size.y * 2 {
+            size.y * 2
+        } else {
+            0
+        };
+        while request_count > 0 {
+            if let Ok(entry) = state.receiver.recv() {
+                state.buffer.push(entry);
+                request_count -= 1;
+            } else {
+                request_count = 0;
+            }
         }
         let selected_index = state.selected_index;
-        let offset = state.offset;
         if selected_index < offset {
             state.offset = selected_index;
         } else if selected_index >= offset + size.y {
@@ -118,22 +128,18 @@ impl TermUI {
                     regular_style
                 };
                 printer.with_style(style, |printer| {
-                    printer.print((0, index), &entry.display());
+                    printer.print((0, index), entry.display());
                 });
             });
     }
 }
 
 impl LogEntry {
-    fn display(&self) -> String {
+    fn display(&self) -> &str {
         match self {
-            LogEntry::Empty => String::from(" "),
-            LogEntry::Info(message) => {
-                format!(
-                    "{} [{}] {}",
-                    message.date_time, message.source, message.message
-                )
-            }
+            LogEntry::Empty => " ",
+            LogEntry::Info(message) => &message.list_message,
+            LogEntry::ParseFailed(error) => &error.error_message,
         }
     }
 }

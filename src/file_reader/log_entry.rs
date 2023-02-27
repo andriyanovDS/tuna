@@ -3,7 +3,20 @@ use serde::Deserialize;
 
 pub enum LogEntry {
     Empty,
+    ParseFailed(LogEntryParseFailed),
     Info(LogMessage),
+}
+
+pub struct LogEntryParseFailed {
+    pub error_message: String,
+}
+
+impl LogEntryParseFailed {
+    fn from<E: std::error::Error>(error: E) -> Self {
+        Self {
+            error_message: error.to_string(),
+        }
+    }
 }
 
 pub struct LogMessage {
@@ -11,16 +24,21 @@ pub struct LogMessage {
     pub date: DateTime<FixedOffset>,
     pub date_time: String,
     pub source: String,
+    pub list_message: String,
 }
 
 impl From<ExternalLogMessage> for LogMessage {
     fn from(value: ExternalLogMessage) -> Self {
         let date_time = value.date.format("%T");
+        let date_time = format!("{date_time}");
+        let one_line_message = value.message.lines().nth(0).unwrap();
+        let list_message = format!("{} [{}] {}", date_time, value.source, one_line_message);
         Self {
             message: value.message,
             date: value.date,
-            date_time: format!("{date_time}"),
+            date_time,
             source: value.source,
+            list_message,
         }
     }
 }
@@ -35,10 +53,13 @@ struct ExternalLogMessage {
 
 impl From<String> for LogEntry {
     fn from(value: String) -> Self {
-        let message = serde_json::from_str::<ExternalLogMessage>(&value)
+        serde_json::from_str::<ExternalLogMessage>(&value)
             .map(LogMessage::from)
-            .unwrap();
-        Self::Info(message)
+            .map(Self::Info)
+            .unwrap_or_else(|error| {
+                log::error!("{error:?}");
+                Self::ParseFailed(LogEntryParseFailed::from(error))
+            })
     }
 }
 
