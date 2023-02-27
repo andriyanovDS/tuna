@@ -83,11 +83,8 @@ impl TermUI {
 
     fn layout(state: &mut State, size: XY<usize>) {
         let offset = state.offset;
-        let mut request_count = if state.buffer.len() < offset + size.y * 2 {
-            size.y * 2
-        } else {
-            0
-        };
+        let diff = (offset + size.y * 2).saturating_sub(state.buffer.len());
+        let mut request_count = diff;
         while request_count > 0 {
             if let Ok(entry) = state.receiver.recv() {
                 state.buffer.push(entry);
