@@ -29,6 +29,7 @@ impl TermUI {
 
     pub fn run(&mut self, receiver: Receiver<LogEntry>) {
         self.runnable.set_theme(Theme::terminal_default());
+        self.runnable.set_window_title("Tuna");
         self.runnable.add_layer(TermUI::build_ui(receiver));
         self.runnable.add_global_callback('q', |c| c.quit());
         self.runnable
