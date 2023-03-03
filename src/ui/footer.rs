@@ -2,6 +2,7 @@ use cursive::{
     direction::Direction,
     event::{Event, EventResult, Key},
     view::{CannotFocus, View},
+    theme::Effect,
     Cursive, Printer, Vec2,
 };
 use std::rc::Rc;
@@ -74,6 +75,17 @@ impl View for Footer {
                 let search_msg = "Search: ";
                 printer.print((0, 0), search_msg);
                 printer.print((search_msg.len(), 0), &self.search_query);
+
+                let cursor_position = search_msg.len() + self.cursor_position;
+                printer.with_effect(Effect::Reverse, |printer| {
+                    let position = self.cursor_position;
+                    if position < self.search_query.len() {
+                        let char = &self.search_query[position..position + 1];
+                        printer.print((cursor_position, 0), char);
+                    } else {
+                        printer.print((cursor_position, 0), " ");
+                    }
+                })
             }
         }
     }
