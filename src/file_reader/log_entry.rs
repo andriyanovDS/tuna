@@ -31,7 +31,7 @@ impl From<ExternalLogMessage> for LogMessage {
     fn from(value: ExternalLogMessage) -> Self {
         let date_time = value.date.format("%T");
         let date_time = format!("{date_time}");
-        let one_line_message = value.message.lines().nth(0).unwrap();
+        let one_line_message = value.message.lines().next().unwrap();
         let list_message = format!("{} [{}] {}", date_time, value.source, one_line_message);
         Self {
             message: value.message,

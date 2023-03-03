@@ -3,29 +3,14 @@ use crossbeam_channel::Receiver;
 use cursive::{
     event::{EventResult, Key},
     theme::Theme,
-    theme::{PaletteStyle, Style, StyleType},
-    view::{self, Resizable},
+    view::{self, Nameable, Resizable},
     views::{self, OnEventView},
-    CbSink, CursiveRunnable, Printer, XY,
+    CbSink, CursiveRunnable,
 };
+use logs_panel::LogsPanel;
 
-struct State {
-    buffer: Vec<LogEntry>,
-    offset: usize,
-    selected_index: usize,
-    receiver: Receiver<LogEntry>,
-}
-
-impl State {
-    fn new(receiver: Receiver<LogEntry>) -> Self {
-        Self {
-            buffer: Vec::new(),
-            offset: 0,
-            selected_index: 0,
-            receiver,
-        }
-    }
-}
+mod footer;
+mod logs_panel;
 
 pub struct TermUI {
     runnable: CursiveRunnable,
@@ -43,9 +28,8 @@ impl TermUI {
     }
 
     pub fn run(&mut self, receiver: Receiver<LogEntry>) {
-        let state = State::new(receiver);
         self.runnable.set_theme(Theme::terminal_default());
-        self.runnable.add_layer(TermUI::build_ui(state));
+        self.runnable.add_layer(TermUI::build_ui(receiver));
         self.runnable.add_global_callback('q', |c| c.quit());
         self.runnable
             .add_global_callback('d', |c| c.toggle_debug_console());
@@ -53,81 +37,42 @@ impl TermUI {
         self.runnable.run();
     }
 
-    fn build_ui(state: State) -> impl view::View {
-        views::LinearLayout::vertical()
-            .child(TermUI::build_logs_view(state))
-            .full_screen()
+    fn build_ui(receiver: Receiver<LogEntry>) -> impl view::View {
+        let footer_view = footer::Footer::new(|c, query| {
+            c.call_on_name(LogsPanel::name(), |view: &mut LogsPanel| {
+                view.set_search_query(query);
+            });
+            c.focus_name(LogsPanel::name()).unwrap();
+        });
+        let view = views::LinearLayout::vertical()
+            .child(TermUI::build_logs_view(receiver))
+            .child(footer_view)
+            .full_screen();
+
+        OnEventView::new(view).on_pre_event_inner('/', |inner, _| {
+            let inner = inner.get_inner_mut();
+            if inner.get_focus_index() == 1 {
+                None
+            } else {
+                inner
+                    .set_focus_index(1)
+                    .map(|_| EventResult::Consumed(None))
+                    .ok()
+            }
+        })
     }
 
-    fn build_logs_view(state: State) -> impl view::View {
-        let canvas = views::Canvas::new(state)
-            .with_layout(TermUI::layout)
-            .with_draw(TermUI::draw)
-            .with_required_size(|_, size| size);
-
-        OnEventView::new(canvas)
+    fn build_logs_view(receiver: Receiver<LogEntry>) -> impl view::View {
+        let view = LogsPanel::new(receiver).with_name(LogsPanel::name());
+        OnEventView::new(view)
             .on_pre_event_inner(Key::Up, |inner, _| {
-                let state = inner.state_mut();
-                state.selected_index = state.selected_index.saturating_sub(1);
+                inner.get_mut().select_prev();
                 Some(EventResult::Consumed(None))
             })
             .on_pre_event_inner(Key::Down, |inner, _| {
-                let state = inner.state_mut();
-                state.selected_index = state
-                    .selected_index
-                    .saturating_add(1)
-                    .min(state.buffer.len() - 1);
+                inner.get_mut().select_next();
                 Some(EventResult::Consumed(None))
             })
-    }
-
-    fn layout(state: &mut State, size: XY<usize>) {
-        let offset = state.offset;
-        let diff = (offset + size.y * 2).saturating_sub(state.buffer.len());
-        let mut request_count = diff;
-        while request_count > 0 {
-            if let Ok(entry) = state.receiver.recv() {
-                state.buffer.push(entry);
-                request_count -= 1;
-            } else {
-                request_count = 0;
-            }
-        }
-        let selected_index = state.selected_index;
-        if selected_index < offset {
-            state.offset = selected_index;
-        } else if selected_index >= offset + size.y {
-            state.offset += selected_index - offset - size.y + 1;
-        }
-    }
-
-    fn draw(state: &State, printer: &Printer) {
-        if state.buffer.is_empty() {
-            return;
-        }
-        let regular_style: StyleType = Style::inherit_parent().into();
-        let highlight_style: StyleType = PaletteStyle::Highlight.into();
-
-        let height = printer.output_size.y;
-        let mut start = state.offset;
-        let end = state.buffer.len().min(start + height);
-        if end - start < height {
-            start = 0;
-        }
-
-        state.buffer[start..end]
-            .iter()
-            .enumerate()
-            .for_each(|(index, entry)| {
-                let style = if index + start == state.selected_index {
-                    highlight_style
-                } else {
-                    regular_style
-                };
-                printer.with_style(style, |printer| {
-                    printer.print((0, index), entry.display());
-                });
-            });
     }
 }
 
