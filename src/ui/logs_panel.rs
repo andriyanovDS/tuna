@@ -72,14 +72,17 @@ impl View for LogsPanel {
             }
         }
         let selected_index = state.selected_index;
+        let max_y = size.y.saturating_sub(2);
         if selected_index < offset {
             state.offset = selected_index;
-        } else if selected_index >= offset + size.y {
-            state.offset += selected_index - offset - size.y + 1;
+        } else if selected_index >= offset + max_y {
+            state.offset += selected_index - offset - max_y + 1;
         }
     }
 
     fn draw(&self, printer: &Printer) {
+        printer.print_box(Vec2::new(0, 0), printer.size, false);
+
         let state = &self.state;
         if state.buffer.is_empty() {
             return;
@@ -87,7 +90,8 @@ impl View for LogsPanel {
         let regular_style: StyleType = Style::inherit_parent().into();
         let highlight_style: StyleType = PaletteStyle::Highlight.into();
 
-        let height = printer.output_size.y;
+        let height = printer.output_size.y.saturating_sub(2);
+        let width = printer.output_size.x.saturating_sub(2);
         let mut start = state.offset;
         let end = state.buffer.len().min(start + height);
         if end - start < height {
@@ -103,8 +107,10 @@ impl View for LogsPanel {
                 } else {
                     regular_style
                 };
+                let message = entry.display();
+                let length = width.min(message.len());
                 printer.with_style(style, |printer| {
-                    printer.print((0, index), entry.display());
+                    printer.print((1, index + 1), &message[..length]);
                 });
             });
     }
