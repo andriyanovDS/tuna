@@ -1,8 +1,8 @@
 use cursive::{
     direction::Direction,
     event::{Event, EventResult, Key},
+    theme::{BaseColor, ColorStyle, Effect, PaletteColor},
     view::{CannotFocus, View},
-    theme::Effect,
     Cursive, Printer, Vec2,
 };
 use std::rc::Rc;
@@ -13,6 +13,9 @@ pub struct Footer {
     search_query: String,
     cursor_position: usize,
     on_submit: Rc<OnSubmit>,
+    on_cancel: Rc<dyn Fn(&mut Cursive)>,
+    info_color_style: ColorStyle,
+    search_color_style: ColorStyle,
 }
 
 #[derive(Copy, Clone)]
@@ -22,15 +25,19 @@ enum SearchState {
 }
 
 impl Footer {
-    pub fn new<T>(on_submit: T) -> Self
+    pub fn new<S, C>(on_submit: S, on_cancel: C) -> Self
     where
-        T: Fn(&mut Cursive, String) + 'static,
+        S: Fn(&mut Cursive, String) + 'static,
+        C: Fn(&mut Cursive) + 'static,
     {
         Self {
             search_state: SearchState::Disabled,
             search_query: String::new(),
             cursor_position: 0,
             on_submit: Rc::new(on_submit),
+            on_cancel: Rc::new(on_cancel),
+            info_color_style: ColorStyle::new(BaseColor::Cyan, PaletteColor::Background),
+            search_color_style: ColorStyle::new(BaseColor::Green, PaletteColor::Background),
         }
     }
 
@@ -69,24 +76,26 @@ impl View for Footer {
         match self.search_state {
             SearchState::Disabled => {
                 let message = "esc: cancel, q: quit, /: search";
-                printer.print((1, 0), message);
+                printer.with_color(self.info_color_style, |p| {
+                    p.print((1, 0), message);
+                });
             }
-            SearchState::Enabled => {
-                let search_msg = "Search: ";
-                printer.print((1, 0), search_msg);
-                printer.print((search_msg.len() + 1, 0), &self.search_query);
+            SearchState::Enabled => printer.with_color(self.search_color_style, |p| {
+                let search_msg = "search: ";
+                p.print((1, 0), search_msg);
+                p.print((search_msg.len() + 1, 0), &self.search_query);
 
                 let cursor_position = search_msg.len() + self.cursor_position + 1;
-                printer.with_effect(Effect::Reverse, |printer| {
+                p.with_effect(Effect::Reverse, |p| {
                     let position = self.cursor_position;
                     if position < self.search_query.len() {
                         let char = &self.search_query[position..position + 1];
-                        printer.print((cursor_position, 0), char);
+                        p.print((cursor_position, 0), char);
                     } else {
-                        printer.print((cursor_position, 0), " ");
+                        p.print((cursor_position, 0), " ");
                     }
                 })
-            }
+            }),
         }
     }
 
@@ -130,7 +139,8 @@ impl View for Footer {
                 }
                 Event::Key(Key::Esc) => {
                     self.stop_search();
-                    EventResult::Consumed(None)
+                    let cancel = self.on_cancel.clone();
+                    EventResult::with_cb_once(move |c| cancel(c))
                 }
                 Event::Key(Key::Enter) => self.submit(),
                 _ => EventResult::Ignored,

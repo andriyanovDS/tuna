@@ -3,16 +3,35 @@ use crossbeam_channel::Receiver;
 use cursive::{
     direction::Direction,
     event::EventResult,
-    theme::{PaletteStyle, Style, StyleType},
+    theme::{BaseColor, ColorStyle, PaletteColor, PaletteStyle, StyleType},
     view::{CannotFocus, View},
     Printer, Vec2, XY,
 };
+
+struct Styles {
+    time_style: StyleType,
+    source_style: StyleType,
+    msg_style: StyleType,
+    msg_style_hl: StyleType,
+}
+
+impl Styles {
+    fn new() -> Self {
+        Self {
+            time_style: ColorStyle::new(BaseColor::Yellow, PaletteColor::Background).into(),
+            source_style: ColorStyle::new(BaseColor::Blue, PaletteColor::Background).into(),
+            msg_style: ColorStyle::new(PaletteColor::Primary, PaletteColor::Background).into(),
+            msg_style_hl: PaletteStyle::Highlight.into(),
+        }
+    }
+}
 
 struct LogsPanelState {
     buffer: Vec<LogEntry>,
     offset: usize,
     selected_index: usize,
     receiver: Receiver<LogEntry>,
+    styles: Styles,
 }
 
 impl LogsPanelState {
@@ -22,6 +41,7 @@ impl LogsPanelState {
             offset: 0,
             selected_index: 0,
             receiver,
+            styles: Styles::new(),
         }
     }
 }
@@ -87,8 +107,6 @@ impl View for LogsPanel {
         if state.buffer.is_empty() {
             return;
         }
-        let regular_style: StyleType = Style::inherit_parent().into();
-        let highlight_style: StyleType = PaletteStyle::Highlight.into();
 
         let height = printer.output_size.y.saturating_sub(2);
         let width = printer.output_size.x.saturating_sub(2);
@@ -97,21 +115,35 @@ impl View for LogsPanel {
         if end - start < height {
             start = 0;
         }
+        let styles = &state.styles;
 
         state.buffer[start..end]
             .iter()
             .enumerate()
             .for_each(|(index, entry)| {
-                let style = if index + start == state.selected_index {
-                    highlight_style
+                let y_pos = index + 1;
+                let styles = if index + start == state.selected_index {
+                    [styles.msg_style_hl; 3]
                 } else {
-                    regular_style
+                    [styles.time_style, styles.source_style, styles.msg_style]
                 };
-                let message = entry.display();
-                let length = width.min(message.len());
-                printer.with_style(style, |printer| {
-                    printer.print((1, index + 1), &message[..length]);
-                });
+                let mut count_left = width;
+                let mut start = 1;
+                entry
+                    .components()
+                    .into_iter()
+                    .zip(styles.into_iter())
+                    .for_each(|(c, style)| {
+                        printer.with_style(style, |p| {
+                            let len = count_left.min(c.len());
+                            p.print((start, y_pos), &c[..len]);
+                            count_left = count_left.saturating_sub(len + 1);
+                            if count_left > 0 {
+                                p.print((start + len, y_pos), " ");
+                            }
+                            start += len + 1;
+                        });
+                    });
             });
     }
 
@@ -121,5 +153,19 @@ impl View for LogsPanel {
 
     fn take_focus(&mut self, _: Direction) -> Result<EventResult, CannotFocus> {
         Ok(EventResult::Consumed(None))
+    }
+}
+
+impl LogEntry {
+    fn components(&self) -> [&str; 3] {
+        match self {
+            LogEntry::Empty => ["", "", ""],
+            LogEntry::Info(message) => [
+                &message.date_time,
+                &message.source,
+                &message.one_line_message,
+            ],
+            LogEntry::ParseFailed(error) => ["", "", &error.error_message],
+        }
     }
 }

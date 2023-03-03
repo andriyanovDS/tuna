@@ -24,21 +24,19 @@ pub struct LogMessage {
     pub date: DateTime<FixedOffset>,
     pub date_time: String,
     pub source: String,
-    pub list_message: String,
+    pub one_line_message: String,
 }
 
 impl From<ExternalLogMessage> for LogMessage {
     fn from(value: ExternalLogMessage) -> Self {
         let date_time = value.date.format("%T");
-        let date_time = format!("{date_time}");
-        let one_line_message = value.message.lines().next().unwrap();
-        let list_message = format!("{} [{}] {}", date_time, value.source, one_line_message);
+        let one_line_message = value.message.lines().next().unwrap().into();
         Self {
             message: value.message,
             date: value.date,
-            date_time,
+            date_time: format!("{date_time}"),
             source: value.source,
-            list_message,
+            one_line_message,
         }
     }
 }

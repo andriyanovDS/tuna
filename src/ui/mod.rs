@@ -30,7 +30,8 @@ impl TermUI {
     pub fn run(&mut self, receiver: Receiver<LogEntry>) {
         self.runnable.set_theme(Theme::terminal_default());
         self.runnable.set_window_title("Tuna");
-        self.runnable.add_fullscreen_layer(TermUI::build_ui(receiver));
+        self.runnable
+            .add_fullscreen_layer(TermUI::build_ui(receiver));
         self.runnable.add_global_callback('q', |c| c.quit());
         self.runnable
             .add_global_callback('d', |c| c.toggle_debug_console());
@@ -39,12 +40,17 @@ impl TermUI {
     }
 
     fn build_ui(receiver: Receiver<LogEntry>) -> impl view::View {
-        let footer_view = footer::Footer::new(|c, query| {
-            c.call_on_name(LogsPanel::name(), |view: &mut LogsPanel| {
-                view.set_search_query(query);
-            });
-            c.focus_name(LogsPanel::name()).unwrap();
-        });
+        let footer_view = footer::Footer::new(
+            |c, query| {
+                c.call_on_name(LogsPanel::name(), |view: &mut LogsPanel| {
+                    view.set_search_query(query);
+                });
+                c.focus_name(LogsPanel::name()).unwrap();
+            },
+            |c| {
+                c.focus_name(LogsPanel::name()).unwrap();
+            },
+        );
         let view = views::LinearLayout::vertical()
             .child(TermUI::build_logs_view(receiver))
             .child(footer_view)
@@ -74,15 +80,5 @@ impl TermUI {
                 inner.get_mut().select_next();
                 Some(EventResult::Consumed(None))
             })
-    }
-}
-
-impl LogEntry {
-    fn display(&self) -> &str {
-        match self {
-            LogEntry::Empty => " ",
-            LogEntry::Info(message) => &message.list_message,
-            LogEntry::ParseFailed(error) => &error.error_message,
-        }
     }
 }
