@@ -29,7 +29,7 @@ pub struct LogsPanelState {
     search_query: Option<String>,
     ascending_found_indices: Vec<usize>,
     descending_found_indices: Vec<usize>,
-    last_height: usize
+    last_height: usize,
 }
 
 impl LogsPanelState {
@@ -43,12 +43,12 @@ impl LogsPanelState {
             search_query: None,
             ascending_found_indices: Vec::new(),
             descending_found_indices: Vec::new(),
-            last_height: 0
+            last_height: 0,
         }
     }
 
     pub fn logs_len(&self) -> usize {
-       self.buffer.len() 
+        self.buffer.len()
     }
 
     pub fn log_iter(&self) -> impl Iterator<Item = &LogEntry> {
@@ -83,7 +83,7 @@ impl LogsPanelState {
     pub fn exit_search_mode(&mut self) {
         self.search_query = None;
         self.ascending_found_indices.clear();
-        self.descending_found_indices.clear(); 
+        self.descending_found_indices.clear();
     }
 
     pub fn set_search_query(&mut self, query: String) {
@@ -105,7 +105,7 @@ impl LogsPanelState {
         if let Some(index) = self.descending_found_indices.last().copied() {
             self.set_selected_index(index);
         } else {
-           self.find_next_log(); 
+            self.find_next_log();
         }
     }
 
@@ -126,25 +126,25 @@ impl LogsPanelState {
         let Some(query) = self.search_query.as_ref() else {
             return;
         };
-        let start_index = self.ascending_found_indices
+        let start_index = self
+            .ascending_found_indices
             .last()
             .map(|index| (index + 1).min(self.buffer.len() - 1))
             .unwrap_or(0);
 
-        let index = self.buffer
+        let index = self
+            .buffer
             .iter()
             .skip(start_index)
             .enumerate()
-            .find_map(|(index, entry)| {
-                entry.contains(query).then_some(index)
-            })
+            .find_map(|(index, entry)| entry.contains(query).then_some(index))
             .map(|i| i + start_index)
             .or_else(|| {
                 while let Ok(entry) = self.receiver.recv() {
                     let contains = entry.contains(query);
                     self.buffer.push(entry);
                     if contains {
-                        return Some(self.buffer.len() - 1)
+                        return Some(self.buffer.len() - 1);
                     }
                 }
                 None
@@ -160,7 +160,7 @@ impl LogsPanelState {
         if self.offset + self.last_height < self.selected_index {
             self.offset = index;
         }
-    } 
+    }
 }
 
 impl LogEntry {
@@ -168,7 +168,7 @@ impl LogEntry {
         if let LogEntry::Info(info) = self {
             info.message.contains(query)
         } else {
-           false 
+            false
         }
     }
 }

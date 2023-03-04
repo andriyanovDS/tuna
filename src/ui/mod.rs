@@ -1,7 +1,7 @@
 use crate::file_reader::log_entry::LogEntry;
 use crossbeam_channel::Receiver;
 use cursive::{
-    event::{EventResult, Key, Event},
+    event::EventResult,
     theme::Theme,
     view::{self, Nameable, Resizable},
     views::{self, OnEventView},
@@ -53,7 +53,7 @@ impl TermUI {
             },
         );
         let view = views::LinearLayout::vertical()
-            .child(TermUI::build_logs_view(receiver))
+            .child(LogsPanel::new(receiver).with_name(LogsPanel::name()))
             .child(footer_view)
             .full_screen();
 
@@ -68,30 +68,5 @@ impl TermUI {
                     .ok()
             }
         })
-    }
-
-    fn build_logs_view(receiver: Receiver<LogEntry>) -> impl view::View {
-        let view = LogsPanel::new(receiver).with_name(LogsPanel::name());
-        OnEventView::new(view)
-            .on_pre_event_inner(Key::Up, |inner, _| {
-                inner.get_mut().select_prev();
-                Some(EventResult::Consumed(None))
-            })
-            .on_pre_event_inner(Key::Down, |inner, _| {
-                inner.get_mut().select_next();
-                Some(EventResult::Consumed(None))
-            })
-            .on_pre_event_inner(Event::Char('n'), |inner, _| {
-                inner.get_mut().go_to_next_search_result();
-                Some(EventResult::Consumed(None))
-            })
-            .on_pre_event_inner(Event::Char('N'), |inner, _| {
-                inner.get_mut().go_to_prev_search_result();
-                Some(EventResult::Consumed(None))
-            })
-            .on_pre_event_inner(Key::Esc, |inner, _| {
-                inner.get_mut().exit_search_mode();
-                Some(EventResult::Consumed(None))
-            })
     }
 }

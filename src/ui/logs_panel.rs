@@ -1,12 +1,12 @@
 use crate::file_reader::log_entry::LogEntry;
+use crate::ui::state::LogsPanelState;
 use crossbeam_channel::Receiver;
 use cursive::{
     direction::Direction,
-    event::EventResult,
+    event::{Event, EventResult, Key},
     view::{CannotFocus, View},
     Printer, Vec2, XY,
 };
-use crate::ui::state::LogsPanelState;
 
 pub struct LogsPanel {
     state: LogsPanelState,
@@ -26,30 +26,6 @@ impl LogsPanel {
     pub fn set_search_query(&mut self, query: String) {
         self.state.set_search_query(query);
     }
-
-    pub fn select_next(&mut self) {
-        self.state.selected_index = self
-            .state
-            .selected_index
-            .saturating_add(1)
-            .min(self.state.logs_len() - 1);
-    }
-
-    pub fn select_prev(&mut self) {
-        self.state.selected_index = self.state.selected_index.saturating_sub(1);
-    }
-
-    pub fn go_to_next_search_result(&mut self) {
-        self.state.go_to_next_search_result();
-    }
-
-    pub fn go_to_prev_search_result(&mut self) {
-        self.state.go_to_prev_search_result();
-    }
-
-    pub fn exit_search_mode(&mut self) {
-        self.state.exit_search_mode();
-    } 
 }
 
 impl View for LogsPanel {
@@ -77,7 +53,8 @@ impl View for LogsPanel {
         }
         let styles = &state.styles;
 
-        state.log_iter()
+        state
+            .log_iter()
             .skip(start)
             .take(end - start)
             .enumerate()
@@ -114,6 +91,36 @@ impl View for LogsPanel {
 
     fn take_focus(&mut self, _: Direction) -> Result<EventResult, CannotFocus> {
         Ok(EventResult::Consumed(None))
+    }
+
+    fn on_event(&mut self, event: Event) -> EventResult {
+        match event {
+            Event::Key(Key::Up) => {
+                self.state.selected_index = self.state.selected_index.saturating_sub(1);
+                EventResult::Consumed(None)
+            }
+            Event::Key(Key::Down) => {
+                self.state.selected_index = self
+                    .state
+                    .selected_index
+                    .saturating_add(1)
+                    .min(self.state.logs_len() - 1);
+                EventResult::Consumed(None)
+            }
+            Event::Key(Key::Esc) => {
+                self.state.exit_search_mode();
+                EventResult::Consumed(None)
+            }
+            Event::Char('n') => {
+                self.state.go_to_next_search_result();
+                EventResult::Consumed(None)
+            }
+            Event::Char('N') => {
+                self.state.go_to_prev_search_result();
+                EventResult::Consumed(None)
+            }
+            _ => EventResult::Ignored,
+        }
     }
 }
 
