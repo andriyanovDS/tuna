@@ -3,48 +3,11 @@ use crossbeam_channel::Receiver;
 use cursive::{
     direction::Direction,
     event::EventResult,
-    theme::{BaseColor, ColorStyle, PaletteColor, PaletteStyle, StyleType},
     view::{CannotFocus, View},
     Printer, Vec2, XY,
 };
+use crate::ui::state::LogsPanelState;
 
-struct Styles {
-    time_style: StyleType,
-    source_style: StyleType,
-    msg_style: StyleType,
-    msg_style_hl: StyleType,
-}
-
-impl Styles {
-    fn new() -> Self {
-        Self {
-            time_style: ColorStyle::new(BaseColor::Yellow, PaletteColor::Background).into(),
-            source_style: ColorStyle::new(BaseColor::Blue, PaletteColor::Background).into(),
-            msg_style: ColorStyle::new(PaletteColor::Primary, PaletteColor::Background).into(),
-            msg_style_hl: PaletteStyle::Highlight.into(),
-        }
-    }
-}
-
-struct LogsPanelState {
-    buffer: Vec<LogEntry>,
-    offset: usize,
-    selected_index: usize,
-    receiver: Receiver<LogEntry>,
-    styles: Styles,
-}
-
-impl LogsPanelState {
-    fn new(receiver: Receiver<LogEntry>) -> Self {
-        Self {
-            buffer: Vec::new(),
-            offset: 0,
-            selected_index: 0,
-            receiver,
-            styles: Styles::new(),
-        }
-    }
-}
 pub struct LogsPanel {
     state: LogsPanelState,
 }
@@ -69,7 +32,7 @@ impl LogsPanel {
             .state
             .selected_index
             .saturating_add(1)
-            .min(self.state.buffer.len() - 1);
+            .min(self.state.logs_len() - 1);
     }
 
     pub fn select_prev(&mut self) {
@@ -80,45 +43,31 @@ impl LogsPanel {
 impl View for LogsPanel {
     fn layout(&mut self, size: XY<usize>) {
         let state = &mut self.state;
-        let offset = state.offset;
-        let diff = (offset + size.y * 2).saturating_sub(state.buffer.len());
-        let mut request_count = diff;
-        while request_count > 0 {
-            if let Ok(entry) = state.receiver.recv() {
-                state.buffer.push(entry);
-                request_count -= 1;
-            } else {
-                request_count = 0;
-            }
-        }
-        let selected_index = state.selected_index;
-        let max_y = size.y.saturating_sub(2);
-        if selected_index < offset {
-            state.offset = selected_index;
-        } else if selected_index >= offset + max_y {
-            state.offset += selected_index - offset - max_y + 1;
-        }
+        state.load_logs(size.y);
+        state.adjust_offset(size.y);
     }
 
     fn draw(&self, printer: &Printer) {
         printer.print_box(Vec2::new(0, 0), printer.size, false);
 
         let state = &self.state;
-        if state.buffer.is_empty() {
+        let logs_len = state.logs_len();
+        if logs_len == 0 {
             return;
         }
 
         let height = printer.output_size.y.saturating_sub(2);
         let width = printer.output_size.x.saturating_sub(2);
         let mut start = state.offset;
-        let end = state.buffer.len().min(start + height);
+        let end = logs_len.min(start + height);
         if end - start < height {
             start = 0;
         }
         let styles = &state.styles;
 
-        state.buffer[start..end]
-            .iter()
+        state.log_iter()
+            .skip(start)
+            .take(end - start)
             .enumerate()
             .for_each(|(index, entry)| {
                 let y_pos = index + 1;

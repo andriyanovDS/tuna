@@ -11,6 +11,7 @@ use logs_panel::LogsPanel;
 
 mod footer;
 mod logs_panel;
+mod state;
 
 pub struct TermUI {
     runnable: CursiveRunnable,
