@@ -27,8 +27,8 @@ pub struct LogsPanelState {
     buffer: Vec<LogEntry>,
     receiver: Receiver<LogEntry>,
     search_query: Option<String>,
-    ascending_find_indices: Vec<usize>,
-    descending_find_indices: Vec<usize>,
+    ascending_found_indices: Vec<usize>,
+    descending_found_indices: Vec<usize>,
     last_height: usize
 }
 
@@ -41,8 +41,8 @@ impl LogsPanelState {
             receiver,
             styles: Styles::new(),
             search_query: None,
-            ascending_find_indices: Vec::new(),
-            descending_find_indices: Vec::new(),
+            ascending_found_indices: Vec::new(),
+            descending_found_indices: Vec::new(),
             last_height: 0
         }
     }
@@ -82,42 +82,42 @@ impl LogsPanelState {
 
     pub fn exit_search_mode(&mut self) {
         self.search_query = None;
-        self.ascending_find_indices.clear();
-        self.descending_find_indices.clear(); 
+        self.ascending_found_indices.clear();
+        self.descending_found_indices.clear(); 
     }
 
     pub fn set_search_query(&mut self, query: String) {
         self.search_query = Some(query);
-        self.ascending_find_indices.clear();
-        self.descending_find_indices.clear();
-        self.go_to_next_log();
+        self.ascending_found_indices.clear();
+        self.descending_found_indices.clear();
+        self.go_to_next_search_result();
     }
 
-    pub fn go_to_next_log(&mut self) {
-        let Some(index) = self.descending_find_indices.last().copied() else {
+    pub fn go_to_next_search_result(&mut self) {
+        let Some(index) = self.descending_found_indices.last().copied() else {
             self.find_next_log();
             return;
         };
         if index == self.selected_index {
-            self.ascending_find_indices.push(index);
-            self.descending_find_indices.pop();
+            self.ascending_found_indices.push(index);
+            self.descending_found_indices.pop();
         }
-        if let Some(index) = self.descending_find_indices.last().copied() {
+        if let Some(index) = self.descending_found_indices.last().copied() {
             self.set_selected_index(index);
         } else {
            self.find_next_log(); 
         }
     }
 
-    pub fn go_to_prev_log(&mut self) {
-        let Some(index) = self.ascending_find_indices.last().copied() else {
+    pub fn go_to_prev_search_result(&mut self) {
+        let Some(index) = self.ascending_found_indices.last().copied() else {
             return;
         };
         if index == self.selected_index {
-            self.descending_find_indices.push(index);
-            self.ascending_find_indices.pop();
+            self.descending_found_indices.push(index);
+            self.ascending_found_indices.pop();
         }
-        if let Some(index) = self.ascending_find_indices.last().copied() {
+        if let Some(index) = self.ascending_found_indices.last().copied() {
             self.set_selected_index(index);
         }
     }
@@ -126,7 +126,7 @@ impl LogsPanelState {
         let Some(query) = self.search_query.as_ref() else {
             return;
         };
-        let start_index = self.ascending_find_indices
+        let start_index = self.ascending_found_indices
             .last()
             .map(|index| (index + 1).min(self.buffer.len() - 1))
             .unwrap_or(0);
@@ -151,7 +151,7 @@ impl LogsPanelState {
             });
         if let Some(index) = index {
             self.set_selected_index(index);
-            self.ascending_find_indices.push(index);
+            self.ascending_found_indices.push(index);
         }
     }
 

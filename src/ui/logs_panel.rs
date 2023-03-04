@@ -40,11 +40,11 @@ impl LogsPanel {
     }
 
     pub fn go_to_next_search_result(&mut self) {
-        self.state.go_to_next_log();
+        self.state.go_to_next_search_result();
     }
 
     pub fn go_to_prev_search_result(&mut self) {
-        self.state.go_to_prev_log();
+        self.state.go_to_prev_search_result();
     }
 
     pub fn exit_search_mode(&mut self) {
