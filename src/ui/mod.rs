@@ -7,6 +7,7 @@ use cursive::{
     views::{self, OnEventView},
     CbSink, CursiveRunnable,
 };
+use footer::Footer;
 use logs_panel::LogsPanel;
 
 mod footer;
@@ -41,20 +42,9 @@ impl TermUI {
     }
 
     fn build_ui(receiver: Receiver<LogEntry>) -> impl view::View {
-        let footer_view = footer::Footer::new(
-            |c, query| {
-                c.call_on_name(LogsPanel::name(), |view: &mut LogsPanel| {
-                    view.set_search_query(query);
-                });
-                c.focus_name(LogsPanel::name()).unwrap();
-            },
-            |c| {
-                c.focus_name(LogsPanel::name()).unwrap();
-            },
-        );
         let view = views::LinearLayout::vertical()
             .child(LogsPanel::new(receiver).with_name(LogsPanel::name()))
-            .child(footer_view)
+            .child(Footer::new().with_name(Footer::name()))
             .full_screen();
 
         OnEventView::new(view).on_pre_event_inner('/', |inner, _| {

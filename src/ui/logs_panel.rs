@@ -1,3 +1,4 @@
+use super::{footer::Footer, state::MatchesIteration};
 use crate::file_reader::log_entry::LogEntry;
 use crate::ui::state::LogsPanelState;
 use crossbeam_channel::Receiver;
@@ -23,8 +24,9 @@ impl LogsPanel {
         "logs_panel"
     }
 
-    pub fn set_search_query(&mut self, query: String) {
+    pub fn set_search_query(&mut self, query: String) -> Option<MatchesIteration> {
         self.state.set_search_query(query);
+        self.state.iteration_state()
     }
 }
 
@@ -109,15 +111,37 @@ impl View for LogsPanel {
             }
             Event::Key(Key::Esc) => {
                 self.state.exit_search_mode();
-                EventResult::Consumed(None)
+                EventResult::with_cb_once(|c| {
+                    c.call_on_name(Footer::name(), |view: &mut Footer| {
+                        view.cancel_search();
+                    });
+                })
             }
             Event::Char('n') => {
                 self.state.go_to_next_search_result();
-                EventResult::Consumed(None)
+                self.state
+                    .iteration_state()
+                    .map(|state| {
+                        EventResult::with_cb_once(|c| {
+                            c.call_on_name(Footer::name(), |view: &mut Footer| {
+                                view.set_results_iteration_state(state);
+                            });
+                        })
+                    })
+                    .unwrap_or(EventResult::Ignored)
             }
             Event::Char('N') => {
                 self.state.go_to_prev_search_result();
-                EventResult::Consumed(None)
+                self.state
+                    .iteration_state()
+                    .map(|state| {
+                        EventResult::with_cb_once(|c| {
+                            c.call_on_name(Footer::name(), |view: &mut Footer| {
+                                view.set_results_iteration_state(state);
+                            });
+                        })
+                    })
+                    .unwrap_or(EventResult::Ignored)
             }
             _ => EventResult::Ignored,
         }

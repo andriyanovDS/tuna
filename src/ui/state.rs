@@ -20,6 +20,18 @@ impl Styles {
     }
 }
 
+#[derive(Debug)]
+pub enum MatchesIteration {
+    NoMatchesFound,
+    MatchesIteration(IterationState),
+}
+
+#[derive(Debug)]
+pub struct IterationState {
+    pub current: usize,
+    pub total: Option<usize>,
+}
+
 pub struct LogsPanelState {
     pub offset: usize,
     pub selected_index: usize,
@@ -29,6 +41,7 @@ pub struct LogsPanelState {
     search_query: Option<String>,
     ascending_found_indices: Vec<usize>,
     descending_found_indices: Vec<usize>,
+    current_match: usize,
     last_height: usize,
 }
 
@@ -44,6 +57,7 @@ impl LogsPanelState {
             ascending_found_indices: Vec::new(),
             descending_found_indices: Vec::new(),
             last_height: 0,
+            current_match: 0,
         }
     }
 
@@ -82,12 +96,14 @@ impl LogsPanelState {
 
     pub fn exit_search_mode(&mut self) {
         self.search_query = None;
+        self.current_match = 0;
         self.ascending_found_indices.clear();
         self.descending_found_indices.clear();
     }
 
     pub fn set_search_query(&mut self, query: String) {
         self.search_query = Some(query);
+        self.current_match = 0;
         self.ascending_found_indices.clear();
         self.descending_found_indices.clear();
         self.go_to_next_search_result();
@@ -104,6 +120,7 @@ impl LogsPanelState {
         }
         if let Some(index) = self.descending_found_indices.last().copied() {
             self.set_selected_index(index);
+            self.current_match += 1;
         } else {
             self.find_next_log();
         }
@@ -119,7 +136,24 @@ impl LogsPanelState {
         }
         if let Some(index) = self.ascending_found_indices.last().copied() {
             self.set_selected_index(index);
+            self.current_match -= 1;
         }
+    }
+
+    pub fn iteration_state(&self) -> Option<MatchesIteration> {
+        self.search_query.as_ref().map(|_| {
+            if self.current_match == 0 {
+                MatchesIteration::NoMatchesFound
+            } else {
+                let state = IterationState {
+                    current: self.current_match,
+                    total: self.receiver.is_empty().then_some({
+                        self.ascending_found_indices.len() + self.descending_found_indices.len()
+                    })
+                };
+                MatchesIteration::MatchesIteration(state)
+            }
+        })
     }
 
     fn find_next_log(&mut self) {
@@ -151,6 +185,7 @@ impl LogsPanelState {
             });
         if let Some(index) = index {
             self.set_selected_index(index);
+            self.current_match += 1;
             self.ascending_found_indices.push(index);
         }
     }
