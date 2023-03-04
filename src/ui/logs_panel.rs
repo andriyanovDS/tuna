@@ -1,4 +1,4 @@
-use super::{footer::Footer, state::MatchesIteration};
+use super::{footer::Footer, state::MatchesSearchState};
 use crate::file_reader::log_entry::LogEntry;
 use crate::ui::state::LogsPanelState;
 use crossbeam_channel::Receiver;
@@ -24,7 +24,7 @@ impl LogsPanel {
         "logs_panel"
     }
 
-    pub fn set_search_query(&mut self, query: String) -> Option<MatchesIteration> {
+    pub fn set_search_query(&mut self, query: String) -> Option<MatchesSearchState> {
         self.state.set_search_query(query);
         self.state.iteration_state()
     }

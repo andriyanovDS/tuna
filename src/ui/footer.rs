@@ -1,5 +1,5 @@
 use super::logs_panel::LogsPanel;
-use super::state::MatchesIteration;
+use super::state::MatchesSearchState;
 use cursive::{
     direction::Direction,
     event::{Event, EventResult, Key},
@@ -19,7 +19,7 @@ pub struct Footer {
 enum SearchState {
     Disabled,
     Input,
-    ResultsIteration(MatchesIteration),
+    ResultsIteration(MatchesSearchState),
 }
 
 impl Footer {
@@ -43,7 +43,7 @@ impl Footer {
         self.search_query = String::new();
     }
 
-    pub fn set_results_iteration_state(&mut self, state: MatchesIteration) {
+    pub fn set_results_iteration_state(&mut self, state: MatchesSearchState) {
         self.search_state = SearchState::ResultsIteration(state);
     }
 
@@ -108,7 +108,7 @@ impl View for Footer {
                     }
                 })
             }),
-            SearchState::ResultsIteration(MatchesIteration::NoMatchesFound) => {
+            SearchState::ResultsIteration(MatchesSearchState::NoMatchesFound) => {
                 let mut start_pos = 1;
                 printer.with_color(self.search_color_style, |p| {
                     ["search: no matches for '", &self.search_query, "'"]
@@ -122,7 +122,7 @@ impl View for Footer {
                     p.print((start_pos + 1, 0), "esc: exit search mode");
                 });
             }
-            SearchState::ResultsIteration(MatchesIteration::MatchesIteration(s)) => {
+            SearchState::ResultsIteration(MatchesSearchState::MatchesIteration(s)) => {
                 let mut start_pos = 1;
                 let current = s.current;
                 printer.with_color(self.search_color_style, |p| {
