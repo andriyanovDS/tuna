@@ -1,7 +1,7 @@
 use crate::file_reader::log_entry::LogEntry;
 use crossbeam_channel::Receiver;
 use cursive::{
-    event::{EventResult, Key},
+    event::{EventResult, Key, Event},
     theme::Theme,
     view::{self, Nameable, Resizable},
     views::{self, OnEventView},
@@ -79,6 +79,18 @@ impl TermUI {
             })
             .on_pre_event_inner(Key::Down, |inner, _| {
                 inner.get_mut().select_next();
+                Some(EventResult::Consumed(None))
+            })
+            .on_pre_event_inner(Event::Char('n'), |inner, _| {
+                inner.get_mut().go_to_next_search_result();
+                Some(EventResult::Consumed(None))
+            })
+            .on_pre_event_inner(Event::Char('N'), |inner, _| {
+                inner.get_mut().go_to_prev_search_result();
+                Some(EventResult::Consumed(None))
+            })
+            .on_pre_event_inner(Key::Esc, |inner, _| {
+                inner.get_mut().exit_search_mode();
                 Some(EventResult::Consumed(None))
             })
     }

@@ -90,22 +90,35 @@ impl LogsPanelState {
         self.search_query = Some(query);
         self.ascending_find_indices.clear();
         self.descending_find_indices.clear();
-        self.go_to_next_searched_log();
+        self.go_to_next_log();
     }
 
-    pub fn go_to_next_searched_log(&mut self) {
-        if let Some(index) = self.descending_find_indices.pop() {
-            self.set_selected_index(index);
+    pub fn go_to_next_log(&mut self) {
+        let Some(index) = self.descending_find_indices.last().copied() else {
+            self.find_next_log();
+            return;
+        };
+        if index == self.selected_index {
             self.ascending_find_indices.push(index);
+            self.descending_find_indices.pop();
+        }
+        if let Some(index) = self.descending_find_indices.last().copied() {
+            self.set_selected_index(index);
         } else {
            self.find_next_log(); 
         }
     }
 
-    pub fn go_to_prev_searched_log(&mut self) {
-        if let Some(index) = self.ascending_find_indices.pop() {
-            self.set_selected_index(index);
+    pub fn go_to_prev_log(&mut self) {
+        let Some(index) = self.ascending_find_indices.last().copied() else {
+            return;
+        };
+        if index == self.selected_index {
             self.descending_find_indices.push(index);
+            self.ascending_find_indices.pop();
+        }
+        if let Some(index) = self.ascending_find_indices.last().copied() {
+            self.set_selected_index(index);
         }
     }
 

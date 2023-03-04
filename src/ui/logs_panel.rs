@@ -38,6 +38,18 @@ impl LogsPanel {
     pub fn select_prev(&mut self) {
         self.state.selected_index = self.state.selected_index.saturating_sub(1);
     }
+
+    pub fn go_to_next_search_result(&mut self) {
+        self.state.go_to_next_log();
+    }
+
+    pub fn go_to_prev_search_result(&mut self) {
+        self.state.go_to_prev_log();
+    }
+
+    pub fn exit_search_mode(&mut self) {
+        self.state.exit_search_mode();
+    } 
 }
 
 impl View for LogsPanel {
