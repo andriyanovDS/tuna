@@ -109,6 +109,14 @@ impl View for LogsPanel {
                     .min(self.state.logs_len() - 1);
                 EventResult::Consumed(None)
             }
+            Event::Key(Key::Left) => {
+                self.state.go_to_prev_page();
+                EventResult::Consumed(None)
+            }
+            Event::Key(Key::Right) => {
+                self.state.go_to_next_page();
+                EventResult::Consumed(None)
+            }
             Event::Key(Key::Esc) => {
                 self.state.exit_search_mode();
                 EventResult::with_cb_once(|c| {

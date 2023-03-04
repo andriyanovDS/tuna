@@ -83,14 +83,26 @@ impl LogsPanelState {
     }
 
     pub fn adjust_offset(&mut self, screen_height: usize) {
-        self.last_height = screen_height;
+        self.last_height =  screen_height.saturating_sub(2);
         let selected_index = self.selected_index;
-        let max_y = screen_height.saturating_sub(2);
+        let max_y = self.last_height; 
         let offset = self.offset;
         if selected_index < offset {
             self.offset = selected_index;
         } else if selected_index >= offset + max_y {
             self.offset += selected_index - offset - max_y + 1;
+        }
+    }
+
+    pub fn go_to_next_page(&mut self) {
+        self.offset = (self.offset + self.last_height).min(self.buffer.len() - 1);
+        self.selected_index = self.offset;
+    }
+
+    pub fn go_to_prev_page(&mut self) {
+        if self.offset >= self.last_height {
+            self.offset -= self.last_height;
+            self.selected_index = self.offset;
         }
     }
 
