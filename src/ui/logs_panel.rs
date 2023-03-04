@@ -24,7 +24,7 @@ impl LogsPanel {
     }
 
     pub fn set_search_query(&mut self, query: String) {
-        log::info!("Receive query {query}");
+        self.state.set_search_query(query);
     }
 
     pub fn select_next(&mut self) {

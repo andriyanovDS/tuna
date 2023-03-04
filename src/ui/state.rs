@@ -26,6 +26,10 @@ pub struct LogsPanelState {
     pub styles: Styles,
     buffer: Vec<LogEntry>,
     receiver: Receiver<LogEntry>,
+    search_query: Option<String>,
+    ascending_find_indices: Vec<usize>,
+    descending_find_indices: Vec<usize>,
+    last_height: usize
 }
 
 impl LogsPanelState {
@@ -36,6 +40,10 @@ impl LogsPanelState {
             selected_index: 0,
             receiver,
             styles: Styles::new(),
+            search_query: None,
+            ascending_find_indices: Vec::new(),
+            descending_find_indices: Vec::new(),
+            last_height: 0
         }
     }
 
@@ -61,6 +69,7 @@ impl LogsPanelState {
     }
 
     pub fn adjust_offset(&mut self, screen_height: usize) {
+        self.last_height = screen_height;
         let selected_index = self.selected_index;
         let max_y = screen_height.saturating_sub(2);
         let offset = self.offset;
@@ -68,6 +77,85 @@ impl LogsPanelState {
             self.offset = selected_index;
         } else if selected_index >= offset + max_y {
             self.offset += selected_index - offset - max_y + 1;
+        }
+    }
+
+    pub fn exit_search_mode(&mut self) {
+        self.search_query = None;
+        self.ascending_find_indices.clear();
+        self.descending_find_indices.clear(); 
+    }
+
+    pub fn set_search_query(&mut self, query: String) {
+        self.search_query = Some(query);
+        self.ascending_find_indices.clear();
+        self.descending_find_indices.clear();
+        self.go_to_next_searched_log();
+    }
+
+    pub fn go_to_next_searched_log(&mut self) {
+        if let Some(index) = self.descending_find_indices.pop() {
+            self.set_selected_index(index);
+            self.ascending_find_indices.push(index);
+        } else {
+           self.find_next_log(); 
+        }
+    }
+
+    pub fn go_to_prev_searched_log(&mut self) {
+        if let Some(index) = self.ascending_find_indices.pop() {
+            self.set_selected_index(index);
+            self.descending_find_indices.push(index);
+        }
+    }
+
+    fn find_next_log(&mut self) {
+        let Some(query) = self.search_query.as_ref() else {
+            return;
+        };
+        let start_index = self.ascending_find_indices
+            .last()
+            .map(|index| (index + 1).min(self.buffer.len() - 1))
+            .unwrap_or(0);
+
+        let index = self.buffer
+            .iter()
+            .skip(start_index)
+            .enumerate()
+            .find_map(|(index, entry)| {
+                entry.contains(query).then_some(index)
+            })
+            .map(|i| i + start_index)
+            .or_else(|| {
+                while let Ok(entry) = self.receiver.recv() {
+                    let contains = entry.contains(query);
+                    self.buffer.push(entry);
+                    if contains {
+                        return Some(self.buffer.len() - 1)
+                    }
+                }
+                None
+            });
+        if let Some(index) = index {
+            self.set_selected_index(index);
+            self.ascending_find_indices.push(index);
+        }
+    }
+
+    fn set_selected_index(&mut self, index: usize) {
+        self.selected_index = index;
+        if self.offset + self.last_height < self.selected_index {
+            self.offset = index;
+        }
+    } 
+}
+
+impl LogEntry {
+    fn contains(&self, query: &String) -> bool {
+        if let LogEntry::Info(info) = self {
+            info.message.contains(query)
+        } else {
+           false 
         }
     }
 }
