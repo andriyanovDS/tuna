@@ -25,7 +25,7 @@ pub struct LogMessage {
     pub date_time: String,
     pub source: String,
     pub one_line_message: String,
-    pub lower_case_message: String
+    pub lower_case_message: String,
 }
 
 impl From<ExternalLogMessage> for LogMessage {
@@ -39,7 +39,7 @@ impl From<ExternalLogMessage> for LogMessage {
             date_time: format!("{date_time}"),
             source: value.source,
             one_line_message,
-            lower_case_message, 
+            lower_case_message,
         }
     }
 }

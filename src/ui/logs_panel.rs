@@ -26,11 +26,33 @@ impl LogsPanel {
 
     pub fn set_search_query(&mut self, query: String) -> Option<MatchesSearchState> {
         self.state.set_search_query(query);
-        self.state.iteration_state()
+        self.state.matches_search_state()
     }
 
     pub fn exit_search_mode(&mut self) {
         self.state.exit_search_mode();
+    }
+
+    fn update_pagination_state(&self) -> EventResult {
+        let pagination_state = self.state.pagination_state();
+        EventResult::with_cb_once(move |c| {
+            c.call_on_name(Footer::name(), |view: &mut Footer| {
+                view.set_pagination_state(pagination_state);
+            }); 
+        })
+    }
+
+    fn update_search_state(&self) -> EventResult {
+        self.state
+            .matches_search_state()
+            .map(|state| {
+                EventResult::with_cb_once(|c| {
+                    c.call_on_name(Footer::name(), |view: &mut Footer| {
+                        view.set_results_iteration_state(state);
+                    });
+                })
+            })
+            .unwrap_or(EventResult::Ignored)
     }
 }
 
@@ -103,7 +125,7 @@ impl View for LogsPanel {
         match event {
             Event::Key(Key::Up) => {
                 self.state.selected_index = self.state.selected_index.saturating_sub(1);
-                EventResult::Consumed(None)
+                self.update_pagination_state()
             }
             Event::Key(Key::Down) => {
                 self.state.selected_index = self
@@ -111,15 +133,15 @@ impl View for LogsPanel {
                     .selected_index
                     .saturating_add(1)
                     .min(self.state.logs_len() - 1);
-                EventResult::Consumed(None)
+                self.update_pagination_state()
             }
-            Event::Key(Key::Left) => {
+            Event::Key(Key::Left) | Event::Char('j') => {
                 self.state.go_to_prev_page();
-                EventResult::Consumed(None)
+                self.update_pagination_state()
             }
-            Event::Key(Key::Right) => {
+            Event::Key(Key::Right) | Event::Char('k') => {
                 self.state.go_to_next_page();
-                EventResult::Consumed(None)
+                self.update_pagination_state()
             }
             Event::Key(Key::Esc) => {
                 self.state.exit_search_mode();
@@ -131,29 +153,11 @@ impl View for LogsPanel {
             }
             Event::Char('n') => {
                 self.state.go_to_next_search_result();
-                self.state
-                    .iteration_state()
-                    .map(|state| {
-                        EventResult::with_cb_once(|c| {
-                            c.call_on_name(Footer::name(), |view: &mut Footer| {
-                                view.set_results_iteration_state(state);
-                            });
-                        })
-                    })
-                    .unwrap_or(EventResult::Ignored)
+                self.update_search_state()
             }
             Event::Char('N') => {
                 self.state.go_to_prev_search_result();
-                self.state
-                    .iteration_state()
-                    .map(|state| {
-                        EventResult::with_cb_once(|c| {
-                            c.call_on_name(Footer::name(), |view: &mut Footer| {
-                                view.set_results_iteration_state(state);
-                            });
-                        })
-                    })
-                    .unwrap_or(EventResult::Ignored)
+                self.update_search_state() 
             }
             _ => EventResult::Ignored,
         }

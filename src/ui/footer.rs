@@ -1,4 +1,4 @@
-use super::logs_panel::LogsPanel;
+use super::{logs_panel::LogsPanel, state::PaginationState};
 use super::state::MatchesSearchState;
 use cursive::{
     direction::Direction,
@@ -12,6 +12,7 @@ pub struct Footer {
     search_state: SearchState,
     search_query: String,
     cursor_position: usize,
+    pagination_state: PaginationState,
     info_color_style: ColorStyle,
     search_color_style: ColorStyle,
 }
@@ -28,6 +29,7 @@ impl Footer {
             search_state: SearchState::Disabled,
             search_query: String::new(),
             cursor_position: 0,
+            pagination_state: PaginationState { current: 1, total: None },
             info_color_style: ColorStyle::new(BaseColor::Cyan, PaletteColor::Background),
             search_color_style: ColorStyle::new(BaseColor::Green, PaletteColor::Background),
         }
@@ -45,6 +47,11 @@ impl Footer {
 
     pub fn set_results_iteration_state(&mut self, state: MatchesSearchState) {
         self.search_state = SearchState::ResultsIteration(state);
+    }
+
+    pub fn set_pagination_state(&mut self, state: PaginationState) {
+        log::info!("set state: {state:?}");
+        self.pagination_state = state;
     }
 
     fn insert(&mut self, character: char) {
@@ -87,9 +94,14 @@ impl View for Footer {
     fn draw(&self, printer: &Printer) {
         match &self.search_state {
             SearchState::Disabled => {
-                let message = "esc: cancel, q: quit, /: search";
+                let page_msg = self.pagination_state.display();
+                let mut start_pos = 1;
+                printer.with_color(self.search_color_style, |p| {
+                    p.print((start_pos, 0), &page_msg);
+                    start_pos += page_msg.len();
+                });
                 printer.with_color(self.info_color_style, |p| {
-                    p.print((1, 0), message);
+                    p.print((start_pos + 1, 0), "esc: cancel, q: quit, /: search");
                 });
             }
             SearchState::Input => printer.with_color(self.search_color_style, |p| {
@@ -124,12 +136,8 @@ impl View for Footer {
             }
             SearchState::ResultsIteration(MatchesSearchState::MatchesIteration(s)) => {
                 let mut start_pos = 1;
-                let current = s.current;
                 printer.with_color(self.search_color_style, |p| {
-                    let page_msg = s
-                        .total
-                        .map(|total| format!("({current} of {total})"))
-                        .unwrap_or_else(|| format!("({current} of ?)"));
+                    let page_msg = s.display();
                     ["search: matches for '", &self.search_query, "' ", &page_msg]
                         .into_iter()
                         .for_each(|m| {
@@ -204,5 +212,13 @@ impl View for Footer {
                 _ => EventResult::Ignored,
             },
         }
+    }
+}
+
+impl PaginationState {
+    fn display(&self) -> String {
+        self.total
+            .map(|total| format!("({} of {total})", self.current))
+            .unwrap_or_else(|| format!("({} of ?)", self.current))
     }
 }

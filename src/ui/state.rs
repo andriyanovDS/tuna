@@ -23,13 +23,13 @@ impl Styles {
 #[derive(Debug)]
 pub enum MatchesSearchState {
     NoMatchesFound,
-    MatchesIteration(IterationState),
+    MatchesIteration(PaginationState),
 }
 
 #[derive(Debug)]
-pub struct IterationState {
+pub struct PaginationState {
     pub current: usize,
-    pub total: Option<usize>,
+    pub total: Option<usize>
 }
 
 pub struct LogsPanelState {
@@ -83,9 +83,9 @@ impl LogsPanelState {
     }
 
     pub fn adjust_offset(&mut self, screen_height: usize) {
-        self.last_height =  screen_height.saturating_sub(2);
+        self.last_height = screen_height.saturating_sub(2);
         let selected_index = self.selected_index;
-        let max_y = self.last_height; 
+        let max_y = self.last_height;
         let offset = self.offset;
         if selected_index < offset {
             self.offset = selected_index;
@@ -152,20 +152,27 @@ impl LogsPanelState {
         }
     }
 
-    pub fn iteration_state(&self) -> Option<MatchesSearchState> {
+    pub fn matches_search_state(&self) -> Option<MatchesSearchState> {
         self.search_query.as_ref().map(|_| {
             if self.current_match == 0 {
                 MatchesSearchState::NoMatchesFound
             } else {
-                let state = IterationState {
+                let state = PaginationState {
                     current: self.current_match,
                     total: self.receiver.is_empty().then_some({
                         self.ascending_match_indices.len() + self.descending_match_indices.len()
-                    })
+                    }) 
                 };
-                MatchesSearchState::MatchesIteration(state)
+                MatchesSearchState::MatchesIteration(state) 
             }
         })
+    }
+
+    pub fn pagination_state(&self) -> PaginationState {
+        PaginationState {
+            current: self.selected_index + 1,
+            total: Some(self.buffer.len())
+        }
     }
 
     fn find_next_log(&mut self) {
