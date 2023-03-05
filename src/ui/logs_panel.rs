@@ -28,6 +28,10 @@ impl LogsPanel {
         self.state.set_search_query(query);
         self.state.iteration_state()
     }
+
+    pub fn exit_search_mode(&mut self) {
+        self.state.exit_search_mode();
+    }
 }
 
 impl View for LogsPanel {

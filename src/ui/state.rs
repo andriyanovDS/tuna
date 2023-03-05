@@ -114,7 +114,7 @@ impl LogsPanelState {
     }
 
     pub fn set_search_query(&mut self, query: String) {
-        self.search_query = Some(query);
+        self.search_query = Some(query.to_lowercase());
         self.current_match = 0;
         self.ascending_match_indices.clear();
         self.descending_match_indices.clear();
@@ -213,7 +213,7 @@ impl LogsPanelState {
 impl LogEntry {
     fn contains(&self, query: &String) -> bool {
         if let LogEntry::Info(info) = self {
-            info.message.contains(query)
+            info.lower_case_message.contains(query)
         } else {
             false
         }

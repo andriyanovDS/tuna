@@ -25,18 +25,21 @@ pub struct LogMessage {
     pub date_time: String,
     pub source: String,
     pub one_line_message: String,
+    pub lower_case_message: String
 }
 
 impl From<ExternalLogMessage> for LogMessage {
     fn from(value: ExternalLogMessage) -> Self {
         let date_time = value.date.format("%T");
         let one_line_message = value.message.lines().next().unwrap().into();
+        let lower_case_message = value.message.to_lowercase();
         Self {
             message: value.message,
             date: value.date,
             date_time: format!("{date_time}"),
             source: value.source,
             one_line_message,
+            lower_case_message, 
         }
     }
 }

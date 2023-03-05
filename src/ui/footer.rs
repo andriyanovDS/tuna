@@ -163,6 +163,7 @@ impl View for Footer {
         match self.search_state {
             SearchState::Disabled | SearchState::ResultsIteration(_) => {
                 self.search_state = SearchState::Input;
+                self.search_query = String::new();
                 Ok(EventResult::Consumed(None))
             }
             SearchState::Input => Err(CannotFocus),
@@ -193,6 +194,9 @@ impl View for Footer {
                 Event::Key(Key::Esc) => {
                     self.cancel_search();
                     EventResult::with_cb_once(move |c| {
+                        c.call_on_name(LogsPanel::name(), |v: &mut LogsPanel| {
+                            v.exit_search_mode();
+                        });
                         c.focus_name(LogsPanel::name()).unwrap();
                     })
                 }
