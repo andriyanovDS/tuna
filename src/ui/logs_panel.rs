@@ -1,4 +1,4 @@
-use super::{footer::Footer, state::MatchesSearchState};
+use super::{dialog_content::DialogContent, footer::Footer, state::MatchesSearchState};
 use crate::file_reader::log_entry::LogEntry;
 use crate::ui::state::LogsPanelState;
 use crossbeam_channel::Receiver;
@@ -38,7 +38,7 @@ impl LogsPanel {
         EventResult::with_cb_once(move |c| {
             c.call_on_name(Footer::name(), |view: &mut Footer| {
                 view.set_pagination_state(pagination_state);
-            }); 
+            });
         })
     }
 
@@ -50,6 +50,22 @@ impl LogsPanel {
                     c.call_on_name(Footer::name(), |view: &mut Footer| {
                         view.set_results_iteration_state(state);
                     });
+                })
+            })
+            .unwrap_or(EventResult::Ignored)
+    }
+
+    fn show_active_message(&self) -> EventResult {
+        self.state
+            .active_message()
+            .cloned()
+            .map(|message| {
+                EventResult::with_cb_once(|c| {
+                    let content = DialogContent::new(message);
+                    let dialog = cursive::views::Dialog::around(content)
+                        .title("Message")
+                        .dismiss_button("Close");
+                    c.add_layer(dialog);
                 })
             })
             .unwrap_or(EventResult::Ignored)
@@ -157,8 +173,9 @@ impl View for LogsPanel {
             }
             Event::Char('N') => {
                 self.state.go_to_prev_search_result();
-                self.update_search_state() 
+                self.update_search_state()
             }
+            Event::Key(Key::Enter) => self.show_active_message(),
             _ => EventResult::Ignored,
         }
     }

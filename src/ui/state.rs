@@ -1,4 +1,4 @@
-use crate::file_reader::log_entry::LogEntry;
+use crate::file_reader::log_entry::{LogEntry, LogMessage};
 use crossbeam_channel::Receiver;
 use cursive::theme::{BaseColor, ColorStyle, PaletteColor, PaletteStyle, StyleType};
 
@@ -10,7 +10,7 @@ pub struct Styles {
 }
 
 impl Styles {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             time_style: ColorStyle::new(BaseColor::Yellow, PaletteColor::Background).into(),
             source_style: ColorStyle::new(BaseColor::Blue, PaletteColor::Background).into(),
@@ -29,7 +29,7 @@ pub enum MatchesSearchState {
 #[derive(Debug)]
 pub struct PaginationState {
     pub current: usize,
-    pub total: Option<usize>
+    pub total: Option<usize>,
 }
 
 pub struct LogsPanelState {
@@ -161,9 +161,9 @@ impl LogsPanelState {
                     current: self.current_match,
                     total: self.receiver.is_empty().then_some({
                         self.ascending_match_indices.len() + self.descending_match_indices.len()
-                    }) 
+                    }),
                 };
-                MatchesSearchState::MatchesIteration(state) 
+                MatchesSearchState::MatchesIteration(state)
             }
         })
     }
@@ -171,7 +171,15 @@ impl LogsPanelState {
     pub fn pagination_state(&self) -> PaginationState {
         PaginationState {
             current: self.selected_index + 1,
-            total: Some(self.buffer.len())
+            total: Some(self.buffer.len()),
+        }
+    }
+
+    pub fn active_message(&self) -> Option<&LogMessage> {
+        match &self.buffer[self.selected_index] {
+            LogEntry::Empty => None,
+            LogEntry::ParseFailed(_) => None,
+            LogEntry::Info(info) => Some(info),
         }
     }
 

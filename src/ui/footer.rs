@@ -1,5 +1,5 @@
-use super::{logs_panel::LogsPanel, state::PaginationState};
 use super::state::MatchesSearchState;
+use super::{logs_panel::LogsPanel, state::PaginationState};
 use cursive::{
     direction::Direction,
     event::{Event, EventResult, Key},
@@ -29,7 +29,10 @@ impl Footer {
             search_state: SearchState::Disabled,
             search_query: String::new(),
             cursor_position: 0,
-            pagination_state: PaginationState { current: 1, total: None },
+            pagination_state: PaginationState {
+                current: 1,
+                total: None,
+            },
             info_color_style: ColorStyle::new(BaseColor::Cyan, PaletteColor::Background),
             search_color_style: ColorStyle::new(BaseColor::Green, PaletteColor::Background),
         }

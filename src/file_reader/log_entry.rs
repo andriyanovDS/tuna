@@ -19,6 +19,7 @@ impl LogEntryParseFailed {
     }
 }
 
+#[derive(Clone)]
 pub struct LogMessage {
     pub message: String,
     pub date: DateTime<FixedOffset>,
@@ -26,6 +27,18 @@ pub struct LogMessage {
     pub source: String,
     pub one_line_message: String,
     pub lower_case_message: String,
+    date_full: Option<String>,
+}
+
+impl LogMessage {
+    pub fn date_full(&mut self) -> String {
+        if let Some(date) = self.date_full.clone() {
+            date
+        } else {
+            self.date_full = Some(self.date.format("%c").to_string());
+            self.date_full.clone().unwrap()
+        }
+    }
 }
 
 impl From<ExternalLogMessage> for LogMessage {
@@ -40,6 +53,7 @@ impl From<ExternalLogMessage> for LogMessage {
             source: value.source,
             one_line_message,
             lower_case_message,
+            date_full: None,
         }
     }
 }

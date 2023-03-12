@@ -10,6 +10,7 @@ use cursive::{
 use footer::Footer;
 use logs_panel::LogsPanel;
 
+mod dialog_content;
 mod footer;
 mod logs_panel;
 mod state;
