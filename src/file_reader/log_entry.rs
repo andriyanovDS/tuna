@@ -1,4 +1,4 @@
-use chrono::{DateTime, FixedOffset, NaiveDateTime, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use serde::Deserialize;
 
 #[derive(Clone)]
@@ -51,30 +51,23 @@ struct ExternalLogMessage {
 impl LogEntry {
     pub fn from_raw(log: &str) -> Option<Self> {
         let mut iter = log.splitn(3, |c: char| c.is_whitespace());
-        let (date, source, message) = (
-            iter.next()?,
-            iter.next()?,
-            iter.next()?
-        );
+        let (date, source, message) = (iter.next()?, iter.next()?, iter.next()?);
         if date.is_empty() || source.len() < 3 {
             return None;
         }
         NaiveDateTime::parse_from_str(&date[0..date.len() - 1], "%Y-%m-%dT%H:%M:%S%.3f")
-            .map(|date| {
-                ExternalLogMessage {
-                    message: message.to_string(),
-                    date: DateTime::<FixedOffset>::from_utc(date, FixedOffset::east_opt(0).unwrap()),
-                    source: source[1..source.len() - 2].to_string()
-                }
+            .map(|date| ExternalLogMessage {
+                message: message.to_string(),
+                date: DateTime::<FixedOffset>::from_utc(date, FixedOffset::east_opt(0).unwrap()),
+                source: source[1..source.len() - 2].to_string(),
             })
             .map(LogEntry::from)
             .ok()
     }
 
     pub fn from_json(log: &str) -> Option<Self> {
-        let result = serde_json::from_str::<ExternalLogMessage>(log)
-            .map(LogEntry::from);
-        match result  {
+        let result = serde_json::from_str::<ExternalLogMessage>(log).map(LogEntry::from);
+        match result {
             Ok(entry) => Some(entry),
             Err(error) => {
                 log::error!("Failed to parse log: {error:?}");
@@ -85,7 +78,7 @@ impl LogEntry {
 
     pub fn append(&mut self, message: &str) {
         self.message.push('\n');
-        self.message.push_str(&message);
+        self.message.push_str(message);
     }
 }
 

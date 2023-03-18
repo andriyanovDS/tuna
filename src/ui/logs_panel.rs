@@ -178,10 +178,6 @@ impl View for LogsPanel {
 
 impl LogEntry {
     fn components(&self) -> [&str; 3] {
-        [
-            &self.date_time,
-            &self.source,
-            &self.one_line_message,
-        ]
+        [&self.date_time, &self.source, &self.one_line_message]
     }
 }

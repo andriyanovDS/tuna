@@ -19,6 +19,7 @@ pub struct TermUI {
     runnable: CursiveRunnable,
 }
 
+#[allow(clippy::new_without_default)]
 impl TermUI {
     pub fn new() -> Self {
         Self {
