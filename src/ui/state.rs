@@ -95,15 +95,19 @@ impl LogsPanelState {
     }
 
     pub fn go_to_next_page(&mut self) {
-        self.offset = (self.offset + self.last_height).min(self.buffer.len() - 1);
+        let last_page_offset = self.buffer.len() - self.last_height;
+        let next_offset = self.offset + self.last_height;
+        self.offset = next_offset.min(last_page_offset);
         self.selected_index = self.offset;
     }
 
     pub fn go_to_prev_page(&mut self) {
         if self.offset >= self.last_height {
             self.offset -= self.last_height;
-            self.selected_index = self.offset;
+        } else {
+            self.offset = 0;
         }
+        self.selected_index = self.offset;
     }
 
     pub fn exit_search_mode(&mut self) {
