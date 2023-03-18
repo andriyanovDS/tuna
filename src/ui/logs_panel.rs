@@ -99,17 +99,22 @@ impl View for LogsPanel {
             .enumerate()
             .for_each(|(index, entry)| {
                 let y_pos = index + 1;
-                let styles = if index + start == state.selected_index {
+                let components_styles = if index + start == state.selected_index {
                     [styles.msg_style_hl; 3]
                 } else {
                     [styles.time_style, styles.source_style, styles.msg_style]
                 };
-                let mut count_left = width;
+                let lines = if entry.lines_count > 1 {
+                    format!("[+{} lines]", entry.lines_count - 1)
+                } else {
+                    String::new()
+                };
+                let mut count_left = width.saturating_sub(lines.len() + 1);
                 let mut start = 1;
-                entry
-                    .components()
+                let components = [&entry.date_time, &entry.source, &entry.one_line_message];
+                components
                     .into_iter()
-                    .zip(styles.into_iter())
+                    .zip(components_styles.into_iter())
                     .for_each(|(c, style)| {
                         printer.with_style(style, |p| {
                             let len = count_left.min(c.len());
@@ -121,6 +126,11 @@ impl View for LogsPanel {
                             start += len + 1;
                         });
                     });
+                if !lines.is_empty() {
+                    printer.with_style(styles.lines_style, |p| {
+                        p.print((width.saturating_sub(lines.len() - 1), y_pos), &lines);
+                    })
+                }
             });
     }
 
@@ -173,11 +183,5 @@ impl View for LogsPanel {
             Event::Key(Key::Enter) => self.show_active_message(),
             _ => EventResult::Ignored,
         }
-    }
-}
-
-impl LogEntry {
-    fn components(&self) -> [&str; 3] {
-        [&self.date_time, &self.source, &self.one_line_message]
     }
 }

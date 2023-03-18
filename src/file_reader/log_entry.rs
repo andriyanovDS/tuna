@@ -9,6 +9,7 @@ pub struct LogEntry {
     pub source: String,
     pub one_line_message: String,
     pub lower_case_message: String,
+    pub lines_count: usize,
     date_full: Option<String>,
 }
 
@@ -28,6 +29,7 @@ impl From<ExternalLogMessage> for LogEntry {
         let date_time = value.date.format("%T%.3f");
         let one_line_message = value.message.lines().next().unwrap().into();
         let lower_case_message = value.message.to_lowercase();
+        let lines_count = value.message.lines().count();
         Self {
             message: value.message,
             date: value.date,
@@ -35,6 +37,7 @@ impl From<ExternalLogMessage> for LogEntry {
             source: value.source,
             one_line_message,
             lower_case_message,
+            lines_count,
             date_full: None,
         }
     }
@@ -79,6 +82,7 @@ impl LogEntry {
     pub fn append(&mut self, message: &str) {
         self.message.push('\n');
         self.message.push_str(message);
+        self.lines_count += 1;
     }
 }
 

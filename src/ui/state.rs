@@ -7,6 +7,7 @@ pub struct Styles {
     pub source_style: StyleType,
     pub msg_style: StyleType,
     pub msg_style_hl: StyleType,
+    pub lines_style: StyleType,
 }
 
 impl Styles {
@@ -16,6 +17,7 @@ impl Styles {
             source_style: ColorStyle::new(BaseColor::Blue, PaletteColor::Background).into(),
             msg_style: ColorStyle::new(PaletteColor::Primary, PaletteColor::Background).into(),
             msg_style_hl: PaletteStyle::Highlight.into(),
+            lines_style: ColorStyle::new(BaseColor::Cyan, PaletteColor::Background).into(),
         }
     }
 }
