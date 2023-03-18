@@ -56,19 +56,14 @@ impl LogsPanel {
     }
 
     fn show_active_message(&self) -> EventResult {
-        self.state
-            .active_message()
-            .cloned()
-            .map(|message| {
-                EventResult::with_cb_once(|c| {
-                    let content = DialogContent::new(message);
-                    let dialog = cursive::views::Dialog::around(content)
-                        .title("Message")
-                        .dismiss_button("Close");
-                    c.add_layer(dialog);
-                })
-            })
-            .unwrap_or(EventResult::Ignored)
+        let entry = self.state.active_message().clone();
+        EventResult::with_cb_once(|c| {
+            let content = DialogContent::new(entry);
+            let dialog = cursive::views::Dialog::around(content)
+                .title("Message")
+                .dismiss_button("Close");
+            c.add_layer(dialog);
+        })
     }
 }
 
@@ -183,14 +178,10 @@ impl View for LogsPanel {
 
 impl LogEntry {
     fn components(&self) -> [&str; 3] {
-        match self {
-            LogEntry::Empty => ["", "", ""],
-            LogEntry::Info(message) => [
-                &message.date_time,
-                &message.source,
-                &message.one_line_message,
-            ],
-            LogEntry::ParseFailed(error) => ["", "", &error.error_message],
-        }
+        [
+            &self.date_time,
+            &self.source,
+            &self.one_line_message,
+        ]
     }
 }

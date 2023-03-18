@@ -1,17 +1,17 @@
 use super::state::Styles;
-use crate::file_reader::log_entry::LogMessage;
+use crate::file_reader::log_entry::LogEntry;
 use cursive::{view::View, Vec2};
 use itertools::Itertools;
 
 pub struct DialogContent {
-    message: LogMessage,
+    message: LogEntry,
     date_full: String,
     required_size: Option<Vec2>,
     styles: Styles,
 }
 
 impl DialogContent {
-    pub fn new(message: LogMessage) -> Self {
+    pub fn new(message: LogEntry) -> Self {
         Self {
             message,
             date_full: String::new(),

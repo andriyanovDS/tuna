@@ -1,4 +1,4 @@
-use crate::file_reader::log_entry::{LogEntry, LogMessage};
+use crate::file_reader::log_entry::LogEntry;
 use crossbeam_channel::Receiver;
 use cursive::theme::{BaseColor, ColorStyle, PaletteColor, PaletteStyle, StyleType};
 
@@ -175,12 +175,8 @@ impl LogsPanelState {
         }
     }
 
-    pub fn active_message(&self) -> Option<&LogMessage> {
-        match &self.buffer[self.selected_index] {
-            LogEntry::Empty => None,
-            LogEntry::ParseFailed(_) => None,
-            LogEntry::Info(info) => Some(info),
-        }
+    pub fn active_message(&self) -> &LogEntry {
+        &self.buffer[self.selected_index]
     }
 
     fn find_next_log(&mut self) {
@@ -227,10 +223,6 @@ impl LogsPanelState {
 
 impl LogEntry {
     fn contains(&self, query: &String) -> bool {
-        if let LogEntry::Info(info) = self {
-            info.lower_case_message.contains(query)
-        } else {
-            false
-        }
+        self.lower_case_message.contains(query)
     }
 }
