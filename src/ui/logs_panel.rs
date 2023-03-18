@@ -85,11 +85,8 @@ impl View for LogsPanel {
 
         let height = printer.output_size.y.saturating_sub(2);
         let width = printer.output_size.x.saturating_sub(2);
-        let mut start = state.offset;
-        let end = logs_len.min(start + height);
-        if end - start < height {
-            start = 0;
-        }
+        let end = logs_len.min(state.offset + height);
+        let start  = end.saturating_sub(height);
         let styles = &state.styles;
 
         state

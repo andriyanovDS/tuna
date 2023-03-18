@@ -41,9 +41,8 @@ pub struct LogsPanelState {
     buffer: Vec<LogEntry>,
     receiver: Receiver<LogEntry>,
     search_query: Option<String>,
-    ascending_match_indices: Vec<usize>,
-    descending_match_indices: Vec<usize>,
-    current_match: usize,
+    match_indices: Vec<usize>,
+    current_match_index: usize,
     last_height: usize,
 }
 
@@ -56,10 +55,9 @@ impl LogsPanelState {
             receiver,
             styles: Styles::new(),
             search_query: None,
-            ascending_match_indices: Vec::new(),
-            descending_match_indices: Vec::new(),
+            match_indices: Vec::new(),
+            current_match_index: 0,
             last_height: 0,
-            current_match: 0,
         }
     }
 
@@ -88,11 +86,10 @@ impl LogsPanelState {
         self.last_height = screen_height.saturating_sub(2);
         let selected_index = self.selected_index;
         let max_y = self.last_height;
-        let offset = self.offset;
-        if selected_index < offset {
+        if selected_index < self.offset {
             self.offset = selected_index;
-        } else if selected_index >= offset + max_y {
-            self.offset += selected_index - offset - max_y + 1;
+        } else if selected_index >= self.offset + max_y {
+            self.offset += selected_index - self.offset - max_y + 1;
         }
     }
 
@@ -114,60 +111,45 @@ impl LogsPanelState {
 
     pub fn exit_search_mode(&mut self) {
         self.search_query = None;
-        self.current_match = 0;
-        self.ascending_match_indices.clear();
-        self.descending_match_indices.clear();
+        self.current_match_index = 0;
+        self.match_indices.clear();
     }
 
     pub fn set_search_query(&mut self, query: String) {
         self.search_query = Some(query.to_lowercase());
-        self.current_match = 0;
-        self.ascending_match_indices.clear();
-        self.descending_match_indices.clear();
+        self.current_match_index = 0;
+        self.match_indices.clear();
         self.go_to_next_search_result();
     }
 
     pub fn go_to_next_search_result(&mut self) {
-        let Some(index) = self.descending_match_indices.last().copied() else {
+        let next_index = self.current_match_index + 1;
+        if next_index >= self.match_indices.len() {
             self.find_next_log();
-            return;
-        };
-        if index == self.selected_index {
-            self.ascending_match_indices.push(index);
-            self.descending_match_indices.pop();
-        }
-        if let Some(index) = self.descending_match_indices.last().copied() {
-            self.set_selected_index(index);
-            self.current_match += 1;
         } else {
-            self.find_next_log();
+            self.current_match_index = next_index;
+        }
+        if !self.match_indices.is_empty() {
+            self.set_selected_index(self.match_indices[self.current_match_index]);
         }
     }
 
     pub fn go_to_prev_search_result(&mut self) {
-        let Some(index) = self.ascending_match_indices.last().copied() else {
+        if self.match_indices.is_empty() {
             return;
-        };
-        if index == self.selected_index {
-            self.descending_match_indices.push(index);
-            self.ascending_match_indices.pop();
         }
-        if let Some(index) = self.ascending_match_indices.last().copied() {
-            self.set_selected_index(index);
-            self.current_match -= 1;
-        }
+        self.current_match_index = self.current_match_index.saturating_sub(1);
+        self.set_selected_index(self.match_indices[self.current_match_index]);
     }
 
     pub fn matches_search_state(&self) -> Option<MatchesSearchState> {
         self.search_query.as_ref().map(|_| {
-            if self.current_match == 0 {
+            if self.match_indices.is_empty() {
                 MatchesSearchState::NoMatchesFound
             } else {
                 let state = PaginationState {
-                    current: self.current_match,
-                    total: self.receiver.is_empty().then_some({
-                        self.ascending_match_indices.len() + self.descending_match_indices.len()
-                    }),
+                    current: self.current_match_index + 1,
+                    total: self.receiver.is_empty().then_some(self.match_indices.len())
                 };
                 MatchesSearchState::MatchesIteration(state)
             }
@@ -189,12 +171,11 @@ impl LogsPanelState {
         let Some(query) = self.search_query.as_ref() else {
             return;
         };
-        let start_index = self
-            .ascending_match_indices
-            .last()
-            .map(|index| (index + 1).min(self.buffer.len() - 1))
-            .unwrap_or(0);
-
+        let start_index = if self.match_indices.is_empty() {
+            0
+        } else {
+            self.match_indices[self.current_match_index] + 1
+        };
         let index = self
             .buffer
             .iter()
@@ -214,8 +195,8 @@ impl LogsPanelState {
             });
         if let Some(index) = index {
             self.set_selected_index(index);
-            self.current_match += 1;
-            self.ascending_match_indices.push(index);
+            self.current_match_index = self.match_indices.len();
+            self.match_indices.push(index);
         }
     }
 
