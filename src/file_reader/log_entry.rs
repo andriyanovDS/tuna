@@ -33,7 +33,7 @@ impl From<ExternalLogMessage> for LogEntry {
         Self {
             message: value.message,
             date: value.date,
-            date_time: format!("{date_time}"),
+            date_time: date_time.to_string(),
             source: value.source,
             one_line_message,
             lower_case_message,
