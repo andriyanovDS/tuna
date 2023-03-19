@@ -42,7 +42,7 @@ pub struct LogsPanelState {
     receiver: Receiver<LogEntry>,
     search_query: Option<String>,
     match_indices: Vec<usize>,
-    current_match_index: usize,
+    current_match_index: Option<usize>,
     last_height: usize,
 }
 
@@ -56,7 +56,7 @@ impl LogsPanelState {
             styles: Styles::new(),
             search_query: None,
             match_indices: Vec::new(),
-            current_match_index: 0,
+            current_match_index: None,
             last_height: 0,
         }
     }
@@ -111,48 +111,71 @@ impl LogsPanelState {
 
     pub fn exit_search_mode(&mut self) {
         self.search_query = None;
-        self.current_match_index = 0;
+        self.current_match_index = None;
         self.match_indices.clear();
     }
 
     pub fn set_search_query(&mut self, query: String) {
         self.search_query = Some(query.to_lowercase());
-        self.current_match_index = 0;
+        self.current_match_index = None;
         self.match_indices.clear();
-        self.go_to_next_search_result();
+        let current_index = self.selected_index;
+        loop {
+            self.go_to_next_search_result();
+            let Some(index) = self.current_match_index else {
+                return;
+            };
+            let match_index = self.match_indices[index];
+            if match_index < current_index && !self.receiver.is_empty() {
+                continue;
+            } else if match_index > current_index {
+                let prev_index = self.match_indices[index.saturating_sub(1)];
+                let closest_index = if prev_index.abs_diff(current_index) < (match_index - current_index) {
+                    prev_index
+                } else {
+                    match_index
+                };
+                self.set_selected_index(closest_index);
+            }
+            return;
+        }
     }
 
     pub fn go_to_next_search_result(&mut self) {
-        let next_index = self.current_match_index + 1;
-        if next_index >= self.match_indices.len() {
-            self.find_next_log();
-        } else {
-            self.current_match_index = next_index;
+        match self.current_match_index.map(|i| i + 1) {
+            Some(index) if index == self.match_indices.len() => {
+                self.find_next_log();
+            }
+            Some(index) => {
+                self.current_match_index = Some(index)
+            }
+            None => {
+                self.find_next_log();
+            }
         }
-        if !self.match_indices.is_empty() {
-            self.set_selected_index(self.match_indices[self.current_match_index]);
+        if let Some(index) = self.current_match_index {
+            self.set_selected_index(self.match_indices[index]);
         }
     }
 
     pub fn go_to_prev_search_result(&mut self) {
-        if self.match_indices.is_empty() {
-            return;
+        if let Some(index) = self.current_match_index.map(|v| v.saturating_sub(1)) {
+            self.current_match_index = Some(index);
+            self.set_selected_index(self.match_indices[index]);
         }
-        self.current_match_index = self.current_match_index.saturating_sub(1);
-        self.set_selected_index(self.match_indices[self.current_match_index]);
     }
 
     pub fn matches_search_state(&self) -> Option<MatchesSearchState> {
         self.search_query.as_ref().map(|_| {
-            if self.match_indices.is_empty() {
-                MatchesSearchState::NoMatchesFound
-            } else {
+            self.current_match_index
+            .map(|index| {
                 let state = PaginationState {
-                    current: self.current_match_index + 1,
+                    current: index + 1,
                     total: self.receiver.is_empty().then_some(self.match_indices.len())
                 };
                 MatchesSearchState::MatchesIteration(state)
-            }
+            })
+            .unwrap_or(MatchesSearchState::NoMatchesFound)
         })
     }
 
@@ -171,11 +194,9 @@ impl LogsPanelState {
         let Some(query) = self.search_query.as_ref() else {
             return;
         };
-        let start_index = if self.match_indices.is_empty() {
-            0
-        } else {
-            self.match_indices[self.current_match_index] + 1
-        };
+        let start_index = self.current_match_index
+            .map(|index| self.match_indices[index] + 1)
+            .unwrap_or(0);
         let index = self
             .buffer
             .iter()
@@ -195,7 +216,7 @@ impl LogsPanelState {
             });
         if let Some(index) = index {
             self.set_selected_index(index);
-            self.current_match_index = self.match_indices.len();
+            self.current_match_index = Some(self.match_indices.len());
             self.match_indices.push(index);
         }
     }
