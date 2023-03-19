@@ -53,21 +53,24 @@ impl Footer {
     }
 
     pub fn set_pagination_state(&mut self, state: PaginationState) {
-        log::info!("set state: {state:?}");
         self.pagination_state = state;
     }
 
     fn insert(&mut self, character: char) {
-        self.search_query.push(character);
+        if self.cursor_position >= self.search_query.len() {
+            self.search_query.push(character);
+        } else {
+            self.search_query.insert(self.cursor_position, character);
+        }
         self.cursor_position += character.len_utf8();
     }
 
-    fn delete_last(&mut self) {
-        if self.search_query.is_empty() {
+    fn delete(&mut self) {
+        if self.cursor_position == 0 {
             return;
         }
-        let char = self.search_query.remove(self.search_query.len() - 1);
-        self.cursor_position -= char.len_utf8();
+        let removed = self.search_query.remove(self.cursor_position - 1);
+        self.cursor_position -= removed.len_utf8();
     }
 
     fn change_cursor_position(&mut self, position: usize) {
@@ -190,7 +193,7 @@ impl View for Footer {
                     EventResult::Consumed(None)
                 }
                 Event::Key(Key::Backspace) => {
-                    self.delete_last();
+                    self.delete();
                     EventResult::Consumed(None)
                 }
                 Event::Key(Key::Left) if self.cursor_position > 0 => {
