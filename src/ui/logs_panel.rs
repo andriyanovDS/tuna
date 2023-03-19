@@ -6,8 +6,12 @@ use cursive::{
     direction::Direction,
     event::{Event, EventResult, Key},
     view::{CannotFocus, View},
+    views::{Checkbox, ListView},
     Printer, Vec2, XY,
 };
+use std::cell::RefCell;
+use std::collections::HashSet;
+use std::rc::Rc;
 
 pub struct LogsPanel {
     state: LogsPanelState,
@@ -31,6 +35,10 @@ impl LogsPanel {
 
     pub fn exit_search_mode(&mut self) {
         self.state.exit_search_mode();
+    }
+
+    pub fn set_selected_sources(&mut self, sources: HashSet<u64>) {
+        self.state.set_selected_sources(sources);
     }
 
     fn update_pagination_state(&self) -> EventResult {
@@ -65,6 +73,42 @@ impl LogsPanel {
             c.add_layer(dialog);
         })
     }
+
+    fn show_source_filter(&self) -> EventResult {
+        let mut list_view = ListView::new();
+        let selected = Rc::new(RefCell::new(std::collections::HashSet::<u64>::new()));
+        self.state.sources_iter().for_each(|(source, is_selected)| {
+            let hash = source.hash;
+            if is_selected {
+                selected.as_ref().borrow_mut().insert(hash);
+            }
+            let selected = selected.clone();
+            let mut checkbox = Checkbox::new().on_change(move |_, is_selected| {
+                let mut selected = selected.as_ref().borrow_mut();
+                if is_selected {
+                    selected.insert(hash);
+                } else {
+                    selected.remove(&hash);
+                }
+            });
+            checkbox.set_checked(is_selected);
+            list_view.add_child(&source.name, checkbox);
+        });
+        EventResult::with_cb_once(|c| {
+            let dialog = cursive::views::Dialog::new()
+                .title("Sources")
+                .dismiss_button("Close")
+                .content(list_view)
+                .button("Submit", move |c| {
+                    c.call_on_name(Self::name(), |view: &mut LogsPanel| {
+                        let selected = selected.as_ref().replace(HashSet::new());
+                        view.set_selected_sources(selected);
+                    });
+                    c.pop_layer();
+                });
+            c.add_layer(dialog);
+        })
+    }
 }
 
 impl View for LogsPanel {
@@ -90,9 +134,7 @@ impl View for LogsPanel {
         let styles = &state.styles;
 
         state
-            .log_iter()
-            .skip(start)
-            .take(end - start)
+            .logs_iter(start, end - start)
             .enumerate()
             .for_each(|(index, entry)| {
                 let y_pos = index + 1;
@@ -108,7 +150,11 @@ impl View for LogsPanel {
                 };
                 let mut count_left = width.saturating_sub(lines.len() + 1);
                 let mut start = 1;
-                let components = [&entry.date_time, &entry.source, &entry.one_line_message];
+                let components = [
+                    &entry.date_time,
+                    &entry.source.name,
+                    &entry.one_line_message,
+                ];
                 components
                     .into_iter()
                     .zip(components_styles.into_iter())
@@ -177,6 +223,7 @@ impl View for LogsPanel {
                 self.state.go_to_prev_search_result();
                 self.update_search_state()
             }
+            Event::Char('s') => self.show_source_filter(),
             Event::Key(Key::Enter) => self.show_active_message(),
             _ => EventResult::Ignored,
         }

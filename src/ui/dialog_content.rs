@@ -33,7 +33,7 @@ impl View for DialogContent {
             p.print((1, 0), &self.date_full);
         });
         printer.with_style(self.styles.source_style, |p| {
-            p.print((1, 1), &self.message.source);
+            p.print((1, 1), &self.message.source.name);
         });
         printer.with_style(self.styles.msg_style, |p| {
             let width = printer.output_size.x;

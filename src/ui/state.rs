@@ -1,6 +1,7 @@
-use crate::file_reader::log_entry::LogEntry;
+use crate::file_reader::log_entry::{LogEntry, Source};
 use crossbeam_channel::Receiver;
 use cursive::theme::{BaseColor, ColorStyle, PaletteColor, PaletteStyle, StyleType};
+use std::collections::HashSet;
 
 pub struct Styles {
     pub time_style: StyleType,
@@ -43,6 +44,8 @@ pub struct LogsPanelState {
     search_query: Option<String>,
     match_indices: Vec<usize>,
     current_match_index: Option<usize>,
+    selected_sources: HashSet<u64>,
+    all_sources: HashSet<Source>,
     last_height: usize,
 }
 
@@ -57,6 +60,8 @@ impl LogsPanelState {
             search_query: None,
             match_indices: Vec::new(),
             current_match_index: None,
+            selected_sources: HashSet::new(),
+            all_sources: HashSet::new(),
             last_height: 0,
         }
     }
@@ -65,8 +70,31 @@ impl LogsPanelState {
         self.buffer.len()
     }
 
-    pub fn log_iter(&self) -> impl Iterator<Item = &LogEntry> {
-        self.buffer.iter()
+    pub fn logs_iter(&self, start: usize, len: usize) -> impl Iterator<Item = &LogEntry> {
+        let selected_sources = &self.selected_sources;
+        self.buffer
+            .iter()
+            .skip(start)
+            .filter(|entry| {
+                if selected_sources.is_empty() {
+                    true
+                } else {
+                    self.selected_sources.contains(&entry.source.hash)
+                }
+            })
+            .take(len)
+    }
+
+    pub fn sources_iter(&self) -> impl Iterator<Item = (&Source, bool)> {
+        let selected = &self.selected_sources;
+        self.all_sources.iter().map(|s| {
+            let is_selected = if selected.is_empty() {
+                true
+            } else {
+                selected.contains(&s.hash)
+            };
+            (s, is_selected)
+        })
     }
 
     pub fn load_logs(&mut self, screen_height: usize) {
@@ -74,6 +102,9 @@ impl LogsPanelState {
         let mut request_count = diff;
         while request_count > 0 {
             if let Ok(entry) = self.receiver.recv() {
+                if !self.all_sources.contains(&entry.source) {
+                    self.all_sources.insert(entry.source.clone());
+                }
                 self.buffer.push(entry);
                 request_count -= 1;
             } else {
@@ -140,6 +171,14 @@ impl LogsPanelState {
             }
             return;
         }
+    }
+
+    pub fn set_selected_sources(&mut self, sources: HashSet<u64>) {
+        self.selected_sources = sources;
+        self.selected_index = 0;
+        self.offset = 0;
+        self.current_match_index = None;
+        self.match_indices.clear()
     }
 
     pub fn go_to_next_search_result(&mut self) {

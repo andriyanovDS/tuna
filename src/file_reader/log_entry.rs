@@ -1,25 +1,35 @@
 use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use serde::Deserialize;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
 
 #[derive(Clone)]
 pub struct LogEntry {
     pub message: String,
     pub date: DateTime<FixedOffset>,
     pub date_time: String,
-    pub source: String,
+    pub source: Source,
     pub one_line_message: String,
     pub lower_case_message: String,
     pub lines_count: usize,
     date_full: Option<String>,
 }
 
-impl LogEntry {
-    pub fn date_full(&mut self) -> String {
-        if let Some(date) = self.date_full.clone() {
-            date
-        } else {
-            self.date_full = Some(self.date.format("%c").to_string());
-            self.date_full.clone().unwrap()
+#[derive(Clone, Hash, PartialEq, Eq)]
+pub struct Source {
+    pub name: String,
+    pub hash: u64,
+}
+
+impl Source {
+    fn new(name: String) -> Self {
+        let mut hasher = DefaultHasher::new();
+        name.hash(&mut hasher);
+        Self {
+            name,
+            hash: hasher.finish(),
         }
     }
 }
@@ -34,7 +44,7 @@ impl From<ExternalLogMessage> for LogEntry {
             message: value.message,
             date: value.date,
             date_time: date_time.to_string(),
-            source: value.source,
+            source: Source::new(value.source),
             one_line_message,
             lower_case_message,
             lines_count,
@@ -83,6 +93,15 @@ impl LogEntry {
         self.message.push('\n');
         self.message.push_str(message);
         self.lines_count += 1;
+    }
+
+    pub fn date_full(&mut self) -> String {
+        if let Some(date) = self.date_full.clone() {
+            date
+        } else {
+            self.date_full = Some(self.date.format("%c").to_string());
+            self.date_full.clone().unwrap()
+        }
     }
 }
 
