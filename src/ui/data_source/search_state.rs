@@ -91,10 +91,12 @@ impl SearchState {
         let query = self.query.as_str();
         let index = match buffer.slice() {
             SearchSlice::Filtered(slice, indices) => {
-                let iter = indices.into_iter().copied().map(|i| &slice[i]);
+                let iter = indices.iter().copied().map(|i| &slice[i]);
                 SearchState::find_next_index(query, iter, start_index)
             }
-            SearchSlice::Plain(slice) => SearchState::find_next_index(query, slice.iter(), start_index),
+            SearchSlice::Plain(slice) => {
+                SearchState::find_next_index(query, slice.iter(), start_index)
+            }
         };
         let index = index.or_else(|| {
             while let Some(entry) = buffer.take_next() {
@@ -111,11 +113,7 @@ impl SearchState {
         index
     }
 
-    fn find_next_index<'v, I>(
-        query: &str,
-        iter: I,
-        start_index: usize,
-    ) -> Option<usize>
+    fn find_next_index<'v, I>(query: &str, iter: I, start_index: usize) -> Option<usize>
     where
         I: Iterator<Item = &'v LogEntry>,
     {

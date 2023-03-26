@@ -2,6 +2,7 @@ use super::search_state::{SearchSlice, SearchSourceBuffer};
 use crate::file_reader::log_entry::LogEntry;
 use crossbeam_channel::Receiver;
 
+#[derive(Default)]
 pub struct Buffer {
     buffer: Vec<LogEntry>,
     receiver: Option<Receiver<LogEntry>>,
@@ -17,15 +18,6 @@ impl Buffer {
 
     pub fn inner(&self) -> &[LogEntry] {
         &self.buffer
-    }
-}
-
-impl Default for Buffer {
-    fn default() -> Self {
-        Self {
-            buffer: Vec::new(),
-            receiver: None
-        }
     }
 }
 
@@ -51,7 +43,7 @@ impl SearchSourceBuffer for Buffer {
         }
     }
 
-    fn slice<'v>(&'v self) -> SearchSlice<'v> {
+    fn slice(&self) -> SearchSlice {
         SearchSlice::Plain(&self.buffer)
     }
 }

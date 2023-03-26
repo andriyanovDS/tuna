@@ -55,7 +55,7 @@ impl DataSource {
         while request_count > 0 {
             let entry = match &mut self.source {
                 EntrySource::Plain(source) => source.buffer.take_next(),
-                EntrySource::Filtered(source) => source.take_next()
+                EntrySource::Filtered(source) => source.take_next(),
             };
             request_count = match entry {
                 Some(entry) => {
@@ -64,7 +64,7 @@ impl DataSource {
                     }
                     request_count - 1
                 }
-                None => 0
+                None => 0,
             }
         }
     }
@@ -253,7 +253,7 @@ impl PlainSource {
         F: Fn((usize, &LogEntry)),
     {
         self.buffer.inner()[self.range.clone()]
-            .into_iter()
+            .iter()
             .enumerate()
             .for_each(f)
     }
@@ -316,7 +316,7 @@ impl FilteredSource {
     {
         let buffer = self.buffer.inner();
         self.indices[self.range.clone()]
-            .into_iter()
+            .iter()
             .map(|index| &buffer[*index])
             .enumerate()
             .for_each(f)
@@ -385,7 +385,7 @@ impl SearchSourceBuffer for FilteredSource {
         entry_index.map(|i| &self.buffer.inner()[i])
     }
 
-    fn slice<'v>(&'v self) -> SearchSlice<'v> {
+    fn slice(&self) -> SearchSlice {
         SearchSlice::Filtered(self.buffer.inner(), &self.indices)
     }
 }
