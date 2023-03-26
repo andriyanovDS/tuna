@@ -1,5 +1,7 @@
-use super::state::MatchesSearchState;
-use super::{logs_panel::LogsPanel, state::PaginationState};
+use super::{
+    data_source::{PaginationState, SearchPaginationState},
+    logs_panel::LogsPanel,
+};
 use cursive::{
     direction::Direction,
     event::{Event, EventResult, Key},
@@ -20,7 +22,7 @@ pub struct Footer {
 enum SearchState {
     Disabled,
     Input,
-    ResultsIteration(MatchesSearchState),
+    ResultsIteration(SearchPaginationState),
 }
 
 impl Footer {
@@ -48,7 +50,7 @@ impl Footer {
         self.search_query = String::new();
     }
 
-    pub fn set_results_iteration_state(&mut self, state: MatchesSearchState) {
+    pub fn set_results_iteration_state(&mut self, state: SearchPaginationState) {
         self.search_state = SearchState::ResultsIteration(state);
     }
 
@@ -83,7 +85,7 @@ impl Footer {
         EventResult::with_cb_once(|c| {
             let mut res = None;
             c.call_on_name(LogsPanel::name(), |view: &mut LogsPanel| {
-                res = view.set_search_query(query);
+                res = Some(view.set_search_query(query));
             });
             c.focus_name(LogsPanel::name()).unwrap();
             let Some(state) = res else {
@@ -126,7 +128,7 @@ impl View for Footer {
                     }
                 })
             }),
-            SearchState::ResultsIteration(MatchesSearchState::NoMatchesFound) => {
+            SearchState::ResultsIteration(SearchPaginationState::NoMatchesFound) => {
                 let mut start_pos = 1;
                 printer.with_color(self.search_color_style, |p| {
                     ["search: no matches for '", &self.search_query, "'"]
@@ -140,7 +142,7 @@ impl View for Footer {
                     p.print((start_pos + 1, 0), "esc: exit search mode");
                 });
             }
-            SearchState::ResultsIteration(MatchesSearchState::MatchesIteration(s)) => {
+            SearchState::ResultsIteration(SearchPaginationState::MatchesIteration(s)) => {
                 let mut start_pos = 1;
                 printer.with_color(self.search_color_style, |p| {
                     let page_msg = s.display();

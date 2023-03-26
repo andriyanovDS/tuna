@@ -1,7 +1,8 @@
-use super::{dialog_content::DialogContent, footer::Footer, state::MatchesSearchState};
+use super::{data_source::SearchPaginationState, dialog_content::DialogContent, footer::Footer};
 use crate::file_reader::log_entry::LogEntry;
-use crate::ui::state::LogsPanelState;
+use crate::ui::data_source::DataSource;
 use crossbeam_channel::Receiver;
+use cursive::theme::{BaseColor, ColorStyle, PaletteColor, PaletteStyle, StyleType};
 use cursive::{
     direction::Direction,
     event::{Event, EventResult, Key},
@@ -13,14 +14,36 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::rc::Rc;
 
+pub struct Styles {
+    pub time_style: StyleType,
+    pub source_style: StyleType,
+    pub msg_style: StyleType,
+    pub msg_style_hl: StyleType,
+    pub lines_style: StyleType,
+}
+
+impl Styles {
+    pub fn new() -> Self {
+        Self {
+            time_style: ColorStyle::new(BaseColor::Yellow, PaletteColor::Background).into(),
+            source_style: ColorStyle::new(BaseColor::Blue, PaletteColor::Background).into(),
+            msg_style: ColorStyle::new(PaletteColor::Primary, PaletteColor::Background).into(),
+            msg_style_hl: PaletteStyle::Highlight.into(),
+            lines_style: ColorStyle::new(BaseColor::Cyan, PaletteColor::Background).into(),
+        }
+    }
+}
+
 pub struct LogsPanel {
-    state: LogsPanelState,
+    state: DataSource,
+    styles: Styles,
 }
 
 impl LogsPanel {
     pub fn new(receiver: Receiver<LogEntry>) -> Self {
         Self {
-            state: LogsPanelState::new(receiver),
+            state: DataSource::new(receiver),
+            styles: Styles::new(),
         }
     }
 
@@ -28,13 +51,13 @@ impl LogsPanel {
         "logs_panel"
     }
 
-    pub fn set_search_query(&mut self, query: String) -> Option<MatchesSearchState> {
-        self.state.set_search_query(query);
-        self.state.matches_search_state()
+    pub fn set_search_query(&mut self, query: String) -> SearchPaginationState {
+        self.state.start_search(query);
+        self.state.search_pagination_state()
     }
 
     pub fn exit_search_mode(&mut self) {
-        self.state.exit_search_mode();
+        self.state.stop_search();
     }
 
     pub fn set_selected_sources(&mut self, sources: HashSet<u64>) {
@@ -51,20 +74,16 @@ impl LogsPanel {
     }
 
     fn update_search_state(&self) -> EventResult {
-        self.state
-            .matches_search_state()
-            .map(|state| {
-                EventResult::with_cb_once(|c| {
-                    c.call_on_name(Footer::name(), |view: &mut Footer| {
-                        view.set_results_iteration_state(state);
-                    });
-                })
-            })
-            .unwrap_or(EventResult::Ignored)
+        let state = self.state.search_pagination_state();
+        EventResult::with_cb_once(|c| {
+            c.call_on_name(Footer::name(), |view: &mut Footer| {
+                view.set_results_iteration_state(state);
+            });
+        })
     }
 
     fn show_active_message(&self) -> EventResult {
-        let entry = self.state.active_message().clone();
+        let entry = self.state.active_message().unwrap().clone();
         EventResult::with_cb_once(|c| {
             let content = DialogContent::new(entry);
             let dialog = cursive::views::Dialog::around(content)
@@ -77,7 +96,7 @@ impl LogsPanel {
     fn show_source_filter(&self) -> EventResult {
         let mut list_view = ListView::new();
         let selected = Rc::new(RefCell::new(std::collections::HashSet::<u64>::new()));
-        self.state.sources_iter().for_each(|(source, is_selected)| {
+        self.state.iterate_sources(|(source, is_selected)| {
             let hash = source.hash;
             if is_selected {
                 selected.as_ref().borrow_mut().insert(hash);
@@ -115,66 +134,55 @@ impl View for LogsPanel {
     fn layout(&mut self, size: XY<usize>) {
         let state = &mut self.state;
         state.load_logs(size.y);
-        state.adjust_offset(size.y);
+        state.prepare_for_draw(size.y.saturating_sub(2));
     }
 
     fn draw(&self, printer: &Printer) {
         printer.print_box(Vec2::new(0, 0), printer.size, false);
 
-        let state = &self.state;
-        let logs_len = state.logs_len();
-        if logs_len == 0 {
-            return;
-        }
-
-        let height = printer.output_size.y.saturating_sub(2);
+        let styles = &self.styles;
         let width = printer.output_size.x.saturating_sub(2);
-        let end = logs_len.min(state.offset + height);
-        let start = end.saturating_sub(height);
-        let styles = &state.styles;
+        let selected_index = self.state.selected_index - self.state.offset;
 
-        state
-            .logs_iter(start, end - start)
-            .enumerate()
-            .for_each(|(index, entry)| {
-                let y_pos = index + 1;
-                let components_styles = if index + start == state.selected_index {
-                    [styles.msg_style_hl; 3]
-                } else {
-                    [styles.time_style, styles.source_style, styles.msg_style]
-                };
-                let lines = if entry.lines_count > 1 {
-                    format!("[+{} lines]", entry.lines_count - 1)
-                } else {
-                    String::new()
-                };
-                let mut count_left = width.saturating_sub(lines.len() + 1);
-                let mut start = 1;
-                let components = [
-                    &entry.date_time,
-                    &entry.source.name,
-                    &entry.one_line_message,
-                ];
-                components
-                    .into_iter()
-                    .zip(components_styles.into_iter())
-                    .for_each(|(c, style)| {
-                        printer.with_style(style, |p| {
-                            let len = count_left.min(c.len());
-                            p.print((start, y_pos), &c[..len]);
-                            count_left = count_left.saturating_sub(len + 1);
-                            if count_left > 0 {
-                                p.print((start + len, y_pos), " ");
-                            }
-                            start += len + 1;
-                        });
+        self.state.iterate_entries_to_draw(|(index, entry)| {
+            let y_pos = index + 1;
+            let components_styles = if index == selected_index {
+                [styles.msg_style_hl; 3]
+            } else {
+                [styles.time_style, styles.source_style, styles.msg_style]
+            };
+            let lines = if entry.lines_count > 1 {
+                format!("[+{} lines]", entry.lines_count - 1)
+            } else {
+                String::new()
+            };
+            let mut count_left = width.saturating_sub(lines.len() + 1);
+            let mut start = 1;
+            let components = [
+                &entry.date_time,
+                &entry.source.name,
+                &entry.one_line_message,
+            ];
+            components
+                .into_iter()
+                .zip(components_styles.into_iter())
+                .for_each(|(c, style)| {
+                    printer.with_style(style, |p| {
+                        let len = count_left.min(c.len());
+                        p.print((start, y_pos), &c[..len]);
+                        count_left = count_left.saturating_sub(len + 1);
+                        if count_left > 0 {
+                            p.print((start + len, y_pos), " ");
+                        }
+                        start += len + 1;
                     });
-                if !lines.is_empty() {
-                    printer.with_style(styles.lines_style, |p| {
-                        p.print((width.saturating_sub(lines.len() - 1), y_pos), &lines);
-                    })
-                }
-            });
+                });
+            if !lines.is_empty() {
+                printer.with_style(styles.lines_style, |p| {
+                    p.print((width.saturating_sub(lines.len() - 1), y_pos), &lines);
+                })
+            }
+        });
     }
 
     fn required_size(&mut self, constraint: Vec2) -> Vec2 {
@@ -188,15 +196,11 @@ impl View for LogsPanel {
     fn on_event(&mut self, event: Event) -> EventResult {
         match event {
             Event::Key(Key::Up) => {
-                self.state.selected_index = self.state.selected_index.saturating_sub(1);
+                self.state.select_previous();
                 self.update_pagination_state()
             }
             Event::Key(Key::Down) => {
-                self.state.selected_index = self
-                    .state
-                    .selected_index
-                    .saturating_add(1)
-                    .min(self.state.logs_len() - 1);
+                self.state.select_next();
                 self.update_pagination_state()
             }
             Event::Key(Key::Left) | Event::Char('j') => {
@@ -208,7 +212,7 @@ impl View for LogsPanel {
                 self.update_pagination_state()
             }
             Event::Key(Key::Esc) => {
-                self.state.exit_search_mode();
+                self.state.stop_search();
                 EventResult::with_cb_once(|c| {
                     c.call_on_name(Footer::name(), |view: &mut Footer| {
                         view.cancel_search();

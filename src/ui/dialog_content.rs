@@ -1,4 +1,4 @@
-use super::state::Styles;
+use super::logs_panel::Styles;
 use crate::file_reader::log_entry::LogEntry;
 use cursive::{view::View, Vec2};
 use itertools::Itertools;

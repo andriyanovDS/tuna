@@ -10,10 +10,10 @@ use cursive::{
 use footer::Footer;
 use logs_panel::LogsPanel;
 
+mod data_source;
 mod dialog_content;
 mod footer;
 mod logs_panel;
-mod state;
 
 pub struct TermUI {
     runnable: CursiveRunnable,
