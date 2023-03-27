@@ -37,9 +37,6 @@ impl TermUI {
         self.runnable
             .add_fullscreen_layer(TermUI::build_ui(receiver));
         self.runnable.add_global_callback('q', |c| c.quit());
-        self.runnable
-            .add_global_callback('d', |c| c.toggle_debug_console());
-        cursive::logger::init();
         self.runnable.run();
     }
 
