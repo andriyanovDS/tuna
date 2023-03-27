@@ -4,6 +4,7 @@ pub struct SearchState {
     query: String,
     match_indices: Vec<usize>,
     pub current_match_index: Option<usize>,
+    pub is_end_reached: bool,
 }
 
 pub enum SearchSlice<'v> {
@@ -24,6 +25,7 @@ impl SearchState {
             query: query.to_lowercase(),
             match_indices: Vec::new(),
             current_match_index: None,
+            is_end_reached: false,
         }
     }
 
@@ -85,6 +87,10 @@ impl SearchState {
     }
 
     fn find_next<B: SearchSourceBuffer>(&mut self, buffer: &mut B) -> Option<usize> {
+        if self.is_end_reached {
+            log::info!("All search results were found");
+            return None;
+        }
         let start_index = self
             .current_match_index
             .map(|index| self.match_indices[index] + 1)
@@ -115,6 +121,8 @@ impl SearchState {
         if let Some(index) = index {
             self.current_match_index = Some(self.match_indices.len());
             self.match_indices.push(index);
+        } else {
+            self.is_end_reached = true;
         }
         index
     }

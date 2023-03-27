@@ -205,7 +205,7 @@ impl DataSource {
             .and_then(|state| {
                 state.current_match_index.map(|index| PaginationState {
                     current: index + 1,
-                    total: Some(state.matches_len()),
+                    total: state.is_end_reached.then_some(state.matches_len()),
                 })
             })
             .map(SearchPaginationState::MatchesIteration)
