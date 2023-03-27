@@ -1,8 +1,8 @@
-use std::{process::exit, path::Path};
 use chrono::Local;
-use std::io::Write;
 use env_logger::{Builder, Target};
 use log::LevelFilter;
+use std::io::Write;
+use std::{path::Path, process::exit};
 
 fn main() {
     configure_logging();

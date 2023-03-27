@@ -99,7 +99,11 @@ impl SearchState {
         let query = self.query.as_str();
         let index = match buffer.slice() {
             SearchSlice::Filtered(slice, indices) => {
-                log::info!("Filtered source. Slice len: {}, indices len: {}", slice.len(), indices.len());
+                log::info!(
+                    "Filtered source. Slice len: {}, indices len: {}",
+                    slice.len(),
+                    indices.len()
+                );
                 let iter = indices.iter().copied().map(|i| &slice[i]);
                 SearchState::find_next_index(query, iter, start_index)
             }

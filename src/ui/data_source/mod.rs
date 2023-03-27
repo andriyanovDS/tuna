@@ -53,7 +53,7 @@ impl DataSource {
     pub fn load_logs(&mut self, height: usize) {
         let buffer_len = match &self.source {
             EntrySource::Plain(source) => source.buffer_len(),
-            EntrySource::Filtered(source) => source.buffer_len()
+            EntrySource::Filtered(source) => source.buffer_len(),
         };
         let mut request_count = (self.offset + height * 2).saturating_sub(buffer_len);
         while request_count > 0 {
@@ -134,7 +134,7 @@ impl DataSource {
         self.offset = 0;
         self.selected_index = 0;
         self.seach_state = None;
-        
+
         let is_all_sources = sources.is_empty() || sources.len() == self.all_sources.len();
         match &mut self.source {
             EntrySource::Plain(source) if !is_all_sources => {
@@ -148,7 +148,7 @@ impl DataSource {
             EntrySource::Filtered(source) if source.selected_sources != sources => {
                 let buffer = std::mem::take(&mut source.buffer);
                 self.source = EntrySource::Filtered(FilteredSource::new(buffer, sources))
-            }   
+            }
             _ => {}
         }
         self.prepare_for_draw(self.last_count);
@@ -161,9 +161,7 @@ impl DataSource {
             EntrySource::Plain(source) => {
                 search_state.start(self.selected_index, &mut source.buffer)
             }
-            EntrySource::Filtered(source) => {
-                search_state.start(self.selected_index, source)
-            }
+            EntrySource::Filtered(source) => search_state.start(self.selected_index, source),
         };
         log::info!("First selected index: {}", self.selected_index);
         self.seach_state = Some(search_state);
@@ -306,11 +304,17 @@ impl FilteredSource {
         if self.is_end_reached || start + count < self.indices.len() {
             let end = self.indices.len().min(start + count);
             let start = end.saturating_sub(count);
-            log::info!("Already have indices to draw. Indices len {}, start: {start}, count: {count}", self.indices.len());
+            log::info!(
+                "Already have indices to draw. Indices len {}, start: {start}, count: {count}",
+                self.indices.len()
+            );
             self.range = Range { start, end };
         } else {
             let mut found = self.indices.len() - start;
-            log::info!("Prepare for draw: indices len: {}, start: {start}, count: {count}", self.indices.len());
+            log::info!(
+                "Prepare for draw: indices len: {}, start: {start}, count: {count}",
+                self.indices.len()
+            );
             while self.take_next().is_some() {
                 found += 1;
                 if found == count {
