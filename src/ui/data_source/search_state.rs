@@ -51,6 +51,8 @@ impl SearchState {
                         match_index
                     };
                 selected_index = closest_index;
+            } else {
+                selected_index = match_index;
             }
             break;
         }
@@ -91,6 +93,7 @@ impl SearchState {
         let query = self.query.as_str();
         let index = match buffer.slice() {
             SearchSlice::Filtered(slice, indices) => {
+                log::info!("Filtered source. Slice len: {}, indices len: {}", slice.len(), indices.len());
                 let iter = indices.iter().copied().map(|i| &slice[i]);
                 SearchState::find_next_index(query, iter, start_index)
             }
@@ -98,10 +101,13 @@ impl SearchState {
                 SearchState::find_next_index(query, slice.iter(), start_index)
             }
         };
+        log::info!("Found next search index in cached data: {index:?}");
         let index = index.or_else(|| {
             while let Some(entry) = buffer.take_next() {
                 if entry.lower_case_message.contains(query) {
-                    return Some(buffer.len() - 1);
+                    let index = buffer.len() - 1;
+                    log::info!("Found next search index in new data: {index}");
+                    return Some(index);
                 }
             }
             None

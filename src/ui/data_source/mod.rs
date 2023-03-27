@@ -162,13 +162,10 @@ impl DataSource {
                 search_state.start(self.selected_index, &mut source.buffer)
             }
             EntrySource::Filtered(source) => {
-                let buffer = std::mem::take(&mut source.buffer);
-                let mut source = PlainSource::new(buffer);
-                let index = search_state.start(self.selected_index, &mut source.buffer);
-                self.source = EntrySource::Plain(source);
-                index
+                search_state.start(self.selected_index, source)
             }
         };
+        log::info!("First selected index: {}", self.selected_index);
         self.seach_state = Some(search_state);
     }
 
