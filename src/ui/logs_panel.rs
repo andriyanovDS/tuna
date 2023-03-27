@@ -1,3 +1,4 @@
+use super::data_source::PaginationState;
 use super::{data_source::SearchPaginationState, dialog_content::DialogContent, footer::Footer};
 use crate::file_reader::log_entry::LogEntry;
 use crate::ui::data_source::DataSource;
@@ -60,8 +61,9 @@ impl LogsPanel {
         self.state.stop_search();
     }
 
-    pub fn set_selected_sources(&mut self, sources: HashSet<u64>) {
+    pub fn set_selected_sources(&mut self, sources: HashSet<u64>) -> PaginationState {
         self.state.set_selected_sources(sources);
+        self.state.pagination_state()
     }
 
     fn update_pagination_state(&self) -> EventResult {
@@ -119,9 +121,12 @@ impl LogsPanel {
                 .dismiss_button("Close")
                 .content(list_view)
                 .button("Submit", move |c| {
-                    c.call_on_name(Self::name(), |view: &mut LogsPanel| {
+                    let pagination_state = c.call_on_name(Self::name(), |view: &mut LogsPanel| {
                         let selected = selected.as_ref().replace(HashSet::new());
-                        view.set_selected_sources(selected);
+                        view.set_selected_sources(selected)
+                    });
+                    c.call_on_name(Footer::name(), |view: &mut Footer| {
+                        view.set_pagination_state(pagination_state.unwrap())
                     });
                     c.pop_layer();
                 });

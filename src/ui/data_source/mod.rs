@@ -50,8 +50,12 @@ impl DataSource {
         }
     }
 
-    pub fn load_logs(&mut self, count: usize) {
-        let mut request_count = count;
+    pub fn load_logs(&mut self, height: usize) {
+        let buffer_len = match &self.source {
+            EntrySource::Plain(source) => source.buffer_len(),
+            EntrySource::Filtered(source) => source.buffer_len()
+        };
+        let mut request_count = (self.offset + height * 2).saturating_sub(buffer_len);
         while request_count > 0 {
             let entry = match &mut self.source {
                 EntrySource::Plain(source) => source.buffer.take_next(),
@@ -90,10 +94,12 @@ impl DataSource {
             EntrySource::Filtered(source) => source.buffer_len(),
         };
         self.selected_index = self.selected_index.saturating_add(1).min(buffer_len - 1);
+        log::info!("Next log selected at index: {}", self.selected_index);
     }
 
     pub fn select_previous(&mut self) {
         self.selected_index = self.selected_index.saturating_sub(1);
+        log::info!("Previous log selected at index: {}", self.selected_index);
     }
 
     pub fn go_to_next_page(&mut self) {
@@ -110,6 +116,7 @@ impl DataSource {
             }
         };
         self.selected_index = self.offset;
+        log::info!("Switched to next page. Offset: {}", self.offset);
     }
 
     pub fn go_to_prev_page(&mut self) {
@@ -119,16 +126,18 @@ impl DataSource {
             self.offset = 0;
         }
         self.selected_index = self.offset;
+        log::info!("Switched to previous page. Offset: {}", self.offset);
     }
 
     pub fn set_selected_sources(&mut self, sources: HashSet<u64>) {
+        log::info!("Set new selected sources");
+        self.offset = 0;
+        self.selected_index = 0;
+        self.seach_state = None;
+        
         let is_all_sources = sources.is_empty() || sources.len() == self.all_sources.len();
         match &mut self.source {
             EntrySource::Plain(source) if !is_all_sources => {
-                let buffer = std::mem::take(&mut source.buffer);
-                self.source = EntrySource::Filtered(FilteredSource::new(buffer, sources))
-            }
-            EntrySource::Filtered(source) if source.selected_sources != sources => {
                 let buffer = std::mem::take(&mut source.buffer);
                 self.source = EntrySource::Filtered(FilteredSource::new(buffer, sources))
             }
@@ -136,11 +145,17 @@ impl DataSource {
                 let buffer = std::mem::take(&mut source.buffer);
                 self.source = EntrySource::Plain(PlainSource::new(buffer))
             }
+            EntrySource::Filtered(source) if source.selected_sources != sources => {
+                let buffer = std::mem::take(&mut source.buffer);
+                self.source = EntrySource::Filtered(FilteredSource::new(buffer, sources))
+            }   
             _ => {}
         }
+        self.prepare_for_draw(self.last_count);
     }
 
     pub fn start_search(&mut self, query: String) {
+        log::info!("Search started for query: {query}");
         let mut search_state = SearchState::new(query);
         self.selected_index = match &mut self.source {
             EntrySource::Plain(source) => {
@@ -158,6 +173,7 @@ impl DataSource {
     }
 
     pub fn stop_search(&mut self) {
+        log::info!("Search stopped");
         self.seach_state = None;
     }
 
@@ -293,15 +309,18 @@ impl FilteredSource {
         if self.is_end_reached || start + count < self.indices.len() {
             let end = self.indices.len().min(start + count);
             let start = end.saturating_sub(count);
+            log::info!("Already have indices to draw. Indices len {}, start: {start}, count: {count}", self.indices.len());
             self.range = Range { start, end };
         } else {
             let mut found = self.indices.len() - start;
+            log::info!("Prepare for draw: indices len: {}, start: {start}, count: {count}", self.indices.len());
             while self.take_next().is_some() {
                 found += 1;
                 if found == count {
                     break;
                 }
             }
+            log::info!("indices gathered: {:?}", self.indices);
             let len = self.indices.len();
             self.range = Range {
                 start: len - start,
@@ -342,12 +361,13 @@ impl SearchSourceBuffer for FilteredSource {
     }
 
     fn take_next(&mut self) -> Option<&LogEntry> {
+        log::info!("take next. last index {}", self.last_buffer_index);
         let iter = self
             .buffer
             .inner()
             .iter()
             .enumerate()
-            .skip(self.last_buffer_index);
+            .skip(self.last_buffer_index + 1);
 
         let mut entry_index = None;
         for (index, entry) in iter {
@@ -359,9 +379,11 @@ impl SearchSourceBuffer for FilteredSource {
             }
         }
         if let Some(index) = entry_index {
+            log::info!("Index found: {index}");
             return Some(&self.buffer.inner()[index]);
         }
         if self.buffer.is_end_reached() {
+            log::info!("End reached. Search will not continue.");
             self.is_end_reached = true;
             return None;
         }
@@ -382,6 +404,7 @@ impl SearchSourceBuffer for FilteredSource {
                 }
             }
         }
+        log::info!("New entry gathered: {entry_index:?}");
         entry_index.map(|i| &self.buffer.inner()[i])
     }
 
