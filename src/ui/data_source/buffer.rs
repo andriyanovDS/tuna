@@ -32,9 +32,6 @@ impl SearchSourceBuffer for Buffer {
 
     fn take_next(&mut self) -> Option<&LogEntry> {
         let receiver = self.receiver.as_mut().unwrap();
-        if receiver.is_empty() {
-            return None;
-        }
         if let Ok(entry) = receiver.recv() {
             self.buffer.push(entry);
             self.buffer.last()
