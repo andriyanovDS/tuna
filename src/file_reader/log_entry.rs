@@ -83,7 +83,7 @@ impl LogEntry {
         match result {
             Ok(entry) => Some(entry),
             Err(error) => {
-                log::error!("Failed to parse log: {error:?}");
+                log::error!("Failed to parse log {log:?} with error: {error:?}");
                 None
             }
         }
@@ -114,6 +114,8 @@ mod date_parse {
         D: Deserializer<'a>,
     {
         let string = String::deserialize(deserializer)?;
-        DateTime::parse_from_rfc2822(&string).map_err(serde::de::Error::custom)
+        let format = "%e %b %Y %H:%M:%S%.3f %z";  
+        DateTime::parse_from_str(string.as_str(), format)
+            .map_err(serde::de::Error::custom)
     }
 }
