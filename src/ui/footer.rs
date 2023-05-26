@@ -109,7 +109,7 @@ impl View for Footer {
                     start_pos += page_msg.len();
                 });
                 printer.with_color(self.info_color_style, |p| {
-                    p.print((start_pos + 1, 0), "esc: cancel, q: quit, /: search");
+                    p.print((start_pos + 1, 0), "esc: cancel, q: quit, s: filter sources, /: search");
                 });
             }
             SearchState::Input => printer.with_color(self.search_color_style, |p| {
